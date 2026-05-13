@@ -70,7 +70,7 @@ Supported paths in registry:
 }
 ```
 
-The dashboard reads `stats`, `suites[].specs[]`, nested suites, test projects, retries, durations, errors, attachments, and renders the user-journey/spec list itself. Raw HTML report remains a link, not the primary UI.
+The dashboard reads `stats`, `suites[].specs[]`, nested suites, test projects, retries, durations, errors, attachments, and renders the user-journey/spec list itself. The official Playwright HTML report remains the primary detailed UI and should be embedded by Empire; JSON powers summary/navigation.
 
 Important: keep Playwright HTML, traces, videos, screenshots as optional artifact links; publish sanitized JSON for the Empire UI.
 

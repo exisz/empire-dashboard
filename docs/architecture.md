@@ -17,7 +17,7 @@ Empire Dashboard static SPA
     └── Commerce / MapSpot / Xueran planned surfaces
 ```
 
-Primary UX is JSON-data-driven cards and tables, including the official Playwright JSON reporter test/spec tree. Raw HTML reports are links that open in a new tab only; iframe embedding is not the main dashboard experience.
+Primary UX is JSON-data-driven cards and tables, including the official Playwright JSON reporter test/spec tree. The official Playwright HTML report is the primary detailed test UI and is embedded in the SPA. Empire uses JSON for navigation, badges, summaries, freshness, and fallbacks instead of reimplementing Playwright’s full report UI.
 
 ## Layers
 

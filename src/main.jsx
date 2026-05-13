@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, AlertTriangle, Boxes, CheckCircle2, CircleDot, Clock3, ExternalLink, FileJson2, Gauge, GitBranch, LayoutDashboard, RadioTower, Search, ShieldCheck, XCircle, Workflow, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, Boxes, CircleDot, Clock3, ExternalLink, Gauge, GitBranch, LayoutDashboard, RadioTower, Search, ShieldCheck, Workflow, Zap } from 'lucide-react';
 import clsx from 'clsx';
 import './styles.css';
 
@@ -240,13 +240,14 @@ function ReportView({ project, surface }) {
   const rawReportUrl = surface.reportUrl || surface.href;
   const rows = surface.trendRows || [];
   const tests = surface.tests || [];
+  const hasOfficialReport = rawReportUrl && surface.state !== 'planned';
   return <>
     <div className="report-head">
-      <div><div className="kicker">{project.name}</div><h2>{surface.name}</h2><div className="report-stats"><StatusPill state={surface.state}/><span>{fmtDate(surface.ts)}</span>{surface.note && <span>{surface.note}</span>}</div></div>
-      <div className="report-actions">{rawReportUrl && <a href={rawReportUrl} target="_blank" rel="noreferrer">Raw report <ExternalLink size={13}/></a>}{project.actionsHref && <a href={project.actionsHref} target="_blank" rel="noreferrer">Actions <ExternalLink size={13}/></a>}</div>
+      <div><div className="kicker">{project.name}</div><h2>{surface.name}</h2><div className="report-stats"><StatusPill state={surface.state}/><span>{fmtDate(surface.ts)}</span><span>{tests.length ? `${tests.length} specs indexed` : 'official Playwright report'}</span>{surface.note && <span>{surface.note}</span>}</div></div>
+      <div className="report-actions">{rawReportUrl && <a href={rawReportUrl} target="_blank" rel="noreferrer">Open official report <ExternalLink size={13}/></a>}{project.actionsHref && <a href={project.actionsHref} target="_blank" rel="noreferrer">Actions <ExternalLink size={13}/></a>}</div>
     </div>
-    <div className="report-body data-view">
-      <section className="detail-grid">
+    <div className="report-frame-shell">
+      <aside className="report-summary">
         <DetailCard label="Status" value={stateLabel(surface.state)} />
         <DetailCard label="Passed" value={surface.passed ?? '—'} />
         <DetailCard label="Failed" value={surface.failed ?? '—'} />
@@ -254,17 +255,13 @@ function ReportView({ project, surface }) {
         <DetailCard label="Total" value={surface.total ?? '—'} />
         <DetailCard label="Duration" value={fmtDuration(surface.duration)} />
         <DetailCard label="Timestamp" value={fmtDate(surface.ts)} />
-        <DetailCard label="Commit" value={surface.sha ?? '—'} />
         <DetailCard label="Run" value={surface.runUrl ? 'Open run' : '—'} href={surface.runUrl} />
         <DetailCard label="Last good" value={surface.lastGoodReportUrl ? 'Open last known good' : '—'} href={surface.lastGoodReportUrl} />
+        {rows.length > 0 && <div className="mini-trends"><div className="table-title"><Clock3 size={14}/> Recent runs</div>{rows.slice(-4).map((row, i) => <div className="mini-row" key={i}><span>{row.timestamp || row.ts || '—'}</span><strong>{row.failed || 0} failed</strong></div>)}</div>}
+      </aside>
+      <section className="official-report-panel">
+        {hasOfficialReport ? <iframe title={`${project.name} ${surface.name} Playwright report`} src={rawReportUrl} /> : <div className="provisioned"><h3>Official Playwright report not published yet</h3><p>This surface is registered. Publish the Playwright HTML report and JSON output from the project repo.</p><pre>{surface.href}</pre></div>}
       </section>
-
-      {surface.state === 'planned' && <div className="provisioned"><h3>Surface planned</h3><p>This slot is registered. The project repo should independently publish JSON files, then optionally link a raw HTML report.</p><pre>{surface.href}</pre></div>}
-      {surface.state === 'no-report' && <div className="provisioned"><h3>No machine-readable report yet</h3><p>{surface.error || 'Publish status.json, summary.json/runs.json, Playwright JSON reporter output, or a legacy results.csv to light up this panel.'}</p><pre>{Object.values(surface.dataUrls || {}).filter(Boolean).join('\n') || surface.href}</pre></div>}
-
-      {tests.length > 0 && <section className="test-list-wrap"><div className="table-title"><FileJson2 size={15}/> Playwright flows / specs</div><div className="test-list">{tests.map((test, i) => <article className={clsx('test-row', test.status)} key={test.id || `${test.file}-${test.title}-${i}`}><div className="test-status-icon">{test.status === 'passed' ? <CheckCircle2 size={17}/> : test.status === 'failed' ? <XCircle size={17}/> : <CircleDot size={17}/>}</div><div className="test-main"><div className="test-title">{test.title}</div><div className="test-journey">{test.journey || 'User journey not grouped'}{test.file ? ` · ${test.file}${test.line ? `:${test.line}` : ''}` : ''}</div>{test.error && <pre className="test-error">{test.error}</pre>}</div><div className="test-meta"><StatusPill state={test.status === 'skipped' || test.status === 'flaky' ? 'stale' : test.status}/><span>{fmtDuration(test.duration)}</span>{test.projectName && <span>{test.projectName}</span>}</div></article>)}</div></section>}
-
-      {rows.length > 0 && <section className="trend-table-wrap"><div className="table-title"><Clock3 size={15}/> Recent trend rows</div><table className="trend-table"><thead><tr><th>Timestamp</th><th>Total</th><th>Passed</th><th>Failed</th><th>Duration</th><th>SHA</th></tr></thead><tbody>{rows.map((row, i) => <tr key={i}><td>{row.timestamp || row.ts || '—'}</td><td>{row.total || row.tests || '—'}</td><td>{row.passed || '—'}</td><td>{row.failed || '—'}</td><td>{fmtDuration(row.duration || row.durationMs)}</td><td>{row.sha || row.commit || '—'}</td></tr>)}</tbody></table></section>}
     </div>
   </>;
 }
