@@ -75,10 +75,10 @@ function normalizePlaywright(json) {
 function pickStatus(status, summary, run, row, surface, playwright) {
   const pwStats = playwright?.stats || {};
   const source = status || summary || run || row || pwStats || {};
-  const failed = asNumber(source.failed ?? source.unexpected ?? source.failures ?? pwStats.unexpected) ?? 0;
-  const passed = asNumber(source.passed ?? source.expected ?? source.successes ?? pwStats.expected) ?? undefined;
-  const skipped = asNumber(source.skipped ?? source.pending ?? pwStats.skipped) ?? undefined;
-  const flaky = asNumber(source.flaky ?? source.flakes ?? pwStats.flaky) ?? undefined;
+  const failed = asNumber(pwStats.unexpected ?? source.failed ?? source.unexpected ?? source.failures) ?? 0;
+  const passed = asNumber(pwStats.expected ?? source.passed ?? source.expected ?? source.successes) ?? undefined;
+  const skipped = asNumber(pwStats.skipped ?? source.skipped ?? source.pending) ?? undefined;
+  const flaky = asNumber(pwStats.flaky ?? source.flaky ?? source.flakes) ?? undefined;
   const countedTotal = [passed, failed, skipped, flaky].filter(v => v !== undefined).reduce((a, b) => a + b, 0);
   const total = asNumber(source.total ?? source.tests) ?? (countedTotal || undefined);
   return {
@@ -95,8 +95,8 @@ function pickStatus(status, summary, run, row, surface, playwright) {
     skipped,
     flaky,
     total,
-    duration: source.duration ?? source.durationMs ?? source.elapsedMs,
-    ts: source.ts ?? source.timestamp ?? source.updatedAt ?? source.completedAt,
+    duration: pwStats.duration ?? source.duration ?? source.durationMs ?? source.elapsedMs,
+    ts: source.ts ?? source.timestamp ?? source.updatedAt ?? source.completedAt ?? pwStats.startTime,
     sha: source.sha ?? source.commit,
     runUrl: source.runUrl ?? source.actionsUrl ?? surface.runUrl,
     reportUrl: source.reportUrl ?? source.rawReportUrl ?? surface.reportUrl ?? surface.href,
