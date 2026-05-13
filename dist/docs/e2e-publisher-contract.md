@@ -1,6 +1,6 @@
 # Empire Dashboard → E2E Module publisher contract
 
-The dashboard is intentionally composable. A project can publish a full Playwright HTML report, or only a tiny status file. The shell still works.
+The dashboard is intentionally composable, but the operator experience is one SPA. A project can publish a full Playwright HTML report, or only a tiny status file. The Empire shell embeds available reports inside the dashboard and still works when a publisher is partial.
 
 ## Preferred folder shape
 
@@ -70,4 +70,4 @@ Do not put payment tokens, test card details, webhook URLs, or login credentials
 
 ## Micro-frontend rule
 
-The gateway owns navigation, registry, and cross-project summary. Each surface owns its own `index.html` and assets. The shell links to the surface instead of trying to bundle every project's UI.
+The gateway owns navigation, registry, cross-project summary, and the viewing frame. Each surface owns its own `index.html` and assets. The shell embeds the surface report in-place instead of sending the operator to a separate system.
