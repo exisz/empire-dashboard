@@ -3,53 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Empire Dashboard · E2E Module</title>
-  <link rel="stylesheet" href="assets/app.css" />
+  <title>Empire Dashboard · E2E Ops</title>
+  <script type="module" crossorigin src="/assets/index-DMq7SNah.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-cJ_SNbZh.css">
 </head>
 <body>
-  <main class="app-shell">
-    <aside class="sidebar">
-      <div class="brand">
-        <p class="eyebrow">Empire Dashboard</p>
-        <h1>Control</h1>
-      </div>
-      <nav class="module-nav" aria-label="Empire modules">
-        <button class="active" data-module="e2e">E2E Module</button>
-        <button disabled>Deploys</button>
-        <button disabled>Incidents</button>
-        <button disabled>Costs</button>
-      </nav>
-      <div class="fleet-card">
-        <span class="label">Fleet status</span>
-        <strong id="fleet-summary">Loading…</strong>
-        <p id="fleet-detail">Reading published surfaces.</p>
-      </div>
-      <div class="sidebar-foot">
-        <a href="docs/e2e-publisher-contract.md">Publisher contract</a>
-        <a href="docs/e2e-roadmap.md">Roadmap</a>
-      </div>
-    </aside>
-
-    <section class="workspace">
-      <header class="topbar">
-        <div>
-          <p class="eyebrow">Module / E2E</p>
-          <h2>Composable Playwright reports</h2>
-        </div>
-        <input id="filter" type="search" placeholder="Filter projects…" />
-      </header>
-
-      <div class="layout">
-        <section class="project-rail" id="project-rail" aria-label="E2E projects"></section>
-        <section class="detail-panel" id="detail-panel" aria-live="polite">
-          <div class="empty-state">
-            <h3>Select a surface</h3>
-            <p>Reports open inside the Empire shell. Projects can publish independently; operators still get one system.</p>
-          </div>
-        </section>
-      </div>
-    </section>
-  </main>
-  <script type="module" src="assets/app.js"></script>
+  <div id="root"></div>
 </body>
 </html>
