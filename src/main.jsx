@@ -188,26 +188,20 @@ function App() {
   }
 
   return <main className="console-shell">
-    <aside className="sidebar">
-      <div className="brand-row"><div className="brand-mark"><Boxes size={20} /></div><div><span>Empire</span><strong>Operations</strong></div></div>
-      <nav className="module-stack">
-        <button className="active"><LayoutDashboard size={16}/> E2E Module</button>
-        <button disabled><RadioTower size={16}/> Deploy Radar</button>
-        <button disabled><ShieldCheck size={16}/> Incidents</button>
-        <button disabled><Gauge size={16}/> Cost Telemetry</button>
-      </nav>
-      <div className="ops-card">
-        <div className="ops-card-head"><Activity size={16}/><span>Fleet Signal</span></div>
-        <strong>{live.length ? `${live.length - failing}/${live.length}` : '—'}</strong>
-        <p>{surfaces.length || '—'} surfaces registered · {planned} planned · {noReport} no report</p>
-      </div>
-      <div className="sidebar-links"><a href="docs/e2e-publisher-contract.md">Publisher contract</a><a href="docs/e2e-roadmap.md">E2E roadmap</a></div>
-    </aside>
-
     <section className="main-plane">
+      <header className="empire-topbar">
+        <div className="brand-row"><div className="brand-mark"><Boxes size={20} /></div><div><span>Empire</span><strong>Operations</strong></div></div>
+        <nav className="module-stack">
+          <button className="active"><LayoutDashboard size={16}/> E2E Module</button>
+          <button disabled><RadioTower size={16}/> Deploy Radar</button>
+          <button disabled><ShieldCheck size={16}/> Incidents</button>
+          <button disabled><Gauge size={16}/> Cost Telemetry</button>
+        </nav>
+        <div className="topbar-links"><a href="docs/e2e-publisher-contract.md">Contract</a><a href="docs/e2e-roadmap.md">Roadmap</a></div>
+      </header>
       <header className="command-bar">
-        <div><div className="kicker"><Zap size={14}/> Empire Dashboard / E2E</div><h1>JSON-fed test operations console</h1></div>
-        <div className="search-box"><Search size={16}/><input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Search projects…" /></div>
+        <div><div className="kicker"><Zap size={14}/> E2E Module</div><h1>Official Playwright report console</h1></div>
+        <div className="topbar-status"><div className="ops-card"><div className="ops-card-head"><Activity size={16}/><span>Fleet Signal</span></div><strong>{live.length ? `${live.length - failing}/${live.length}` : '—'}</strong><p>{surfaces.length || '—'} surfaces · {planned} planned · {noReport} no report</p></div><div className="search-box"><Search size={16}/><input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Search projects…" /></div></div>
       </header>
 
       <section className="metrics-grid">
@@ -233,6 +227,28 @@ function App() {
     </section>
   </main>;
 }
+
+function tuneReportFrame(event) {
+  const frame = event.currentTarget;
+  try {
+    const doc = frame.contentDocument;
+    if (!doc) return;
+    doc.documentElement.style.colorScheme = 'light';
+    doc.body?.style.setProperty('background', '#ffffff', 'important');
+    const style = doc.createElement('style');
+    style.dataset.empireDashboardPatch = 'playwright-light-frame';
+    style.textContent = `
+      :root, html, body { color-scheme: light !important; background: #fff !important; }
+      body, #root, .htmlreport, .htmlreport * { forced-color-adjust: none; }
+      body { color: #111827 !important; }
+      @media (prefers-color-scheme: dark) {
+        :root, html, body { background: #fff !important; color: #111827 !important; }
+      }
+    `;
+    if (!doc.head.querySelector('[data-empire-dashboard-patch="playwright-light-frame"]')) doc.head.appendChild(style);
+  } catch {}
+}
+
 function DetailCard({ label, value, href }) {
   return <div className="detail-card"><span>{label}</span>{href && value !== '—' ? <a href={href} target="_blank" rel="noreferrer">{value}<ExternalLink size={13}/></a> : <strong>{value ?? '—'}</strong>}</div>;
 }
@@ -260,7 +276,7 @@ function ReportView({ project, surface }) {
         {rows.length > 0 && <div className="mini-trends"><div className="table-title"><Clock3 size={14}/> Recent runs</div>{rows.slice(-4).map((row, i) => <div className="mini-row" key={i}><span>{row.timestamp || row.ts || '—'}</span><strong>{row.failed || 0} failed</strong></div>)}</div>}
       </aside>
       <section className="official-report-panel">
-        {hasOfficialReport ? <iframe title={`${project.name} ${surface.name} Playwright report`} src={rawReportUrl} /> : <div className="provisioned"><h3>Official Playwright report not published yet</h3><p>This surface is registered. Publish the Playwright HTML report and JSON output from the project repo.</p><pre>{surface.href}</pre></div>}
+        {hasOfficialReport ? <iframe title={`${project.name} ${surface.name} Playwright report`} src={rawReportUrl} onLoad={tuneReportFrame} /> : <div className="provisioned"><h3>Official Playwright report not published yet</h3><p>This surface is registered. Publish the Playwright HTML report and JSON output from the project repo.</p><pre>{surface.href}</pre></div>}
       </section>
     </div>
   </>;
