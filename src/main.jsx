@@ -15,6 +15,15 @@ function csvLast(text) {
 }
 async function fetchJson(url) { return (await fetch(url, { cache: 'no-store' })).json(); }
 async function fetchText(url) { return (await fetch(url, { cache: 'no-store' })).text(); }
+async function detectReportState(surface, hydrated) {
+  try {
+    const html = await fetchText(surface.href);
+    if (/No Playwright report|No report available|Placeholder/i.test(html)) {
+      return { ...hydrated, state: 'empty', reportEmpty: true };
+    }
+  } catch {}
+  return hydrated;
+}
 async function hydrateSurface(surface) {
   if (surface.planned) return { ...surface, state: 'planned' };
   try {
@@ -22,22 +31,22 @@ async function hydrateSurface(surface) {
       const status = await fetchJson(surface.statusUrl);
       const failed = Number(status.failed ?? status.unexpected ?? 0);
       const passed = Number(status.passed ?? status.expected ?? 0);
-      return { ...surface, state: failed > 0 ? 'fail' : 'pass', status, passed, failed, duration: status.duration, ts: status.ts };
+      return detectReportState(surface, { ...surface, state: failed > 0 ? 'fail' : 'pass', status, passed, failed, duration: status.duration, ts: status.ts });
     }
     if (surface.resultsUrl) {
       const row = csvLast(await fetchText(surface.resultsUrl));
       if (row) {
         const failed = Number(row.failed ?? 0), passed = Number(row.passed ?? 0);
-        return { ...surface, state: failed > 0 ? 'fail' : 'pass', passed, failed, duration: row.duration, ts: row.timestamp };
+        return detectReportState(surface, { ...surface, state: failed > 0 ? 'fail' : 'pass', passed, failed, duration: row.duration, ts: row.timestamp });
       }
     }
-    return { ...surface, state: 'unknown' };
+    return detectReportState(surface, { ...surface, state: 'unknown' });
   } catch (error) {
     return { ...surface, state: 'unknown', error: String(error.message || error) };
   }
 }
 const keyOf = (p, s) => `${p.id}/${s.id}`;
-const stateLabel = (s) => s === 'pass' ? 'Operational' : s === 'fail' ? 'Failing' : s === 'planned' ? 'Provisioned' : 'Unknown';
+const stateLabel = (s) => s === 'pass' ? 'Operational' : s === 'fail' ? 'Failing' : s === 'empty' ? 'No Report' : s === 'planned' ? 'Provisioned' : 'Unknown';
 const fmtDuration = (ms) => { const n = Number(ms || 0); if (!n) return '—'; return n > 10000 ? `${Math.round(n / 1000)}s` : `${n}ms`; };
 function projectState(project) {
   const states = project.surfaces.map(s => s.state);
@@ -82,6 +91,7 @@ function App() {
   const live = surfaces.filter(({ surface }) => ['pass', 'fail'].includes(surface.state));
   const failing = live.filter(({ surface }) => surface.state === 'fail').length;
   const planned = surfaces.filter(({ surface }) => surface.state === 'planned').length;
+  const empty = surfaces.filter(({ surface }) => surface.state === 'empty').length;
   const selected = surfaces.find(({ project, surface }) => keyOf(project, surface) === selectedKey) || surfaces[0];
   const visibleProjects = projects.filter(p => `${p.name} ${p.repo}`.toLowerCase().includes(filter.toLowerCase()));
 
@@ -102,7 +112,7 @@ function App() {
       <div className="ops-card">
         <div className="ops-card-head"><Activity size={16}/><span>Fleet Signal</span></div>
         <strong>{live.length ? `${live.length - failing}/${live.length}` : '—'}</strong>
-        <p>{surfaces.length || '—'} surfaces registered · {planned} provisioned</p>
+        <p>{surfaces.length || '—'} surfaces registered · {planned} provisioned · {empty} no report</p>
       </div>
       <div className="sidebar-links"><a href="docs/e2e-publisher-contract.md">Publisher contract</a><a href="docs/e2e-roadmap.md">E2E roadmap</a></div>
     </aside>
@@ -116,7 +126,7 @@ function App() {
       <section className="metrics-grid">
         <MetricCard icon={CircleDot} label="Live surfaces" value={live.length || '—'} />
         <MetricCard icon={AlertTriangle} label="Failing" value={failing} tone={failing ? 'danger' : 'good'} />
-        <MetricCard icon={Workflow} label="Publishers" value={projects.length || '—'} />
+        <MetricCard icon={Workflow} label="No report" value={empty} tone={empty ? 'warn' : ''} />
         <MetricCard icon={GitBranch} label="Mode" value="Composed SPA" />
       </section>
 
