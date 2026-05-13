@@ -1,0 +1,133 @@
+{
+  "schema": "https://exisz.github.io/empire-dashboard/modules/e2e/projects.schema.json",
+  "updatedAt": "2026-05-13T12:10:00Z",
+  "projects": [
+    {
+      "id": "tally",
+      "name": "Tally",
+      "kind": "product",
+      "repo": "exisz/tally",
+      "href": "https://exisz.github.io/tally/",
+      "actionsHref": "https://github.com/exisz/tally/actions",
+      "surfaces": [
+        {
+          "id": "cloud",
+          "name": "Cloud",
+          "href": "https://exisz.github.io/tally/cloud/",
+          "statusUrl": "https://exisz.github.io/tally/cloud/status.json",
+          "resultsUrl": "https://exisz.github.io/tally/cloud/results.csv"
+        },
+        {
+          "id": "desktop-mac",
+          "name": "Desktop macOS",
+          "href": "https://exisz.github.io/tally/desktop/mac/",
+          "statusUrl": "https://exisz.github.io/tally/desktop/mac/status.json",
+          "resultsUrl": "https://exisz.github.io/tally/desktop/mac/results.csv"
+        },
+        {
+          "id": "desktop-linux",
+          "name": "Desktop Linux",
+          "href": "https://exisz.github.io/tally/desktop/linux/",
+          "statusUrl": "https://exisz.github.io/tally/desktop/linux/status.json",
+          "resultsUrl": "https://exisz.github.io/tally/desktop/linux/results.csv"
+        }
+      ]
+    },
+    {
+      "id": "peopleclaw",
+      "name": "PeopleClaw",
+      "kind": "product",
+      "repo": "exisz/peopleclaw",
+      "href": "https://exisz.github.io/peopleclaw/",
+      "actionsHref": "https://github.com/exisz/peopleclaw/actions",
+      "surfaces": [
+        {
+          "id": "admin",
+          "name": "Admin App",
+          "href": "https://exisz.github.io/peopleclaw/",
+          "resultsUrl": "https://exisz.github.io/peopleclaw/results.csv"
+        }
+      ]
+    },
+    {
+      "id": "commerce",
+      "name": "Commerce Stores",
+      "kind": "storefront-group",
+      "repo": "exisz/medusa",
+      "href": "https://exisz.github.io/medusa/e2e/commerce/",
+      "actionsHref": "https://github.com/exisz/medusa/actions/workflows/commerce-e2e-reports.yml",
+      "surfaces": [
+        {
+          "id": "fun-store",
+          "name": "Fun Store",
+          "href": "https://exisz.github.io/medusa/e2e/commerce/fun-store/",
+          "statusUrl": "https://exisz.github.io/medusa/e2e/commerce/fun-store/status.json",
+          "summaryUrl": "https://exisz.github.io/medusa/e2e/commerce/fun-store/summary.json",
+          "historyUrl": "https://exisz.github.io/medusa/e2e/commerce/fun-store/history.csv",
+          "playwrightJsonUrl": "https://exisz.github.io/medusa/e2e/commerce/fun-store/test-results/results.json",
+          "reportUrl": "https://exisz.github.io/medusa/e2e/commerce/fun-store/"
+        },
+        {
+          "id": "annie-time",
+          "name": "Annie Time",
+          "href": "https://exisz.github.io/medusa/e2e/commerce/annie-time/",
+          "statusUrl": "https://exisz.github.io/medusa/e2e/commerce/annie-time/status.json",
+          "summaryUrl": "https://exisz.github.io/medusa/e2e/commerce/annie-time/summary.json",
+          "historyUrl": "https://exisz.github.io/medusa/e2e/commerce/annie-time/history.csv",
+          "playwrightJsonUrl": "https://exisz.github.io/medusa/e2e/commerce/annie-time/test-results/results.json",
+          "reportUrl": "https://exisz.github.io/medusa/e2e/commerce/annie-time/"
+        },
+        {
+          "id": "aussie-style",
+          "name": "Aussie Style",
+          "href": "https://exisz.github.io/medusa/e2e/commerce/aussie-style/",
+          "statusUrl": "https://exisz.github.io/medusa/e2e/commerce/aussie-style/status.json",
+          "summaryUrl": "https://exisz.github.io/medusa/e2e/commerce/aussie-style/summary.json",
+          "historyUrl": "https://exisz.github.io/medusa/e2e/commerce/aussie-style/history.csv",
+          "playwrightJsonUrl": "https://exisz.github.io/medusa/e2e/commerce/aussie-style/test-results/results.json",
+          "reportUrl": "https://exisz.github.io/medusa/e2e/commerce/aussie-style/"
+        }
+      ]
+    },
+    {
+      "id": "mapspot",
+      "name": "MapSpot",
+      "kind": "product",
+      "repo": "exisz/mapspot.net",
+      "href": "https://exisz.github.io/mapspot.net/e2e/web/",
+      "actionsHref": "https://github.com/exisz/mapspot.net/actions/workflows/e2e-dashboard.yml",
+      "surfaces": [
+        {
+          "id": "web",
+          "name": "Web",
+          "href": "https://exisz.github.io/mapspot.net/e2e/web/",
+          "statusUrl": "https://exisz.github.io/mapspot.net/e2e/web/status.json",
+          "summaryUrl": "https://exisz.github.io/mapspot.net/e2e/web/summary.json",
+          "historyUrl": "https://exisz.github.io/mapspot.net/e2e/web/history.csv",
+          "playwrightJsonUrl": "https://exisz.github.io/mapspot.net/e2e/web/test-results/results.json",
+          "reportUrl": "https://exisz.github.io/mapspot.net/e2e/web/"
+        }
+      ]
+    },
+    {
+      "id": "xueran",
+      "name": "Xueran DM",
+      "kind": "product",
+      "repo": "exisz/xueran-monorepo",
+      "href": "https://exisz.github.io/xueran-monorepo/e2e/dm/",
+      "actionsHref": "https://github.com/exisz/xueran-monorepo/actions/workflows/e2e-dashboard.yml",
+      "surfaces": [
+        {
+          "id": "dm",
+          "name": "DM",
+          "href": "https://exisz.github.io/xueran-monorepo/e2e/dm/",
+          "statusUrl": "https://exisz.github.io/xueran-monorepo/e2e/dm/status.json",
+          "summaryUrl": "https://exisz.github.io/xueran-monorepo/e2e/dm/summary.json",
+          "historyUrl": "https://exisz.github.io/xueran-monorepo/e2e/dm/history.csv",
+          "playwrightJsonUrl": "https://exisz.github.io/xueran-monorepo/e2e/dm/test-results/results.json",
+          "reportUrl": "https://exisz.github.io/xueran-monorepo/e2e/dm/"
+        }
+      ]
+    }
+  ]
+}
