@@ -1,11 +1,22 @@
 {
   "name": "empire-dashboard",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "node scripts/build.js",
-    "check": "node scripts/validate-registry.js"
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "check": "node scripts/validate-registry.js",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "latest",
+    "vite": "latest",
+    "typescript": "latest",
+    "react": "latest",
+    "react-dom": "latest",
+    "lucide-react": "latest",
+    "clsx": "latest"
   },
   "devDependencies": {}
 }
