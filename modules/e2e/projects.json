@@ -1,0 +1,68 @@
+{
+  "schema": "https://exisz.github.io/empire-dashboard/modules/e2e/projects.schema.json",
+  "updatedAt": "2026-05-13T08:32:00Z",
+  "projects": [
+    {
+      "id": "tally",
+      "name": "Tally",
+      "kind": "product",
+      "repo": "exisz/tally",
+      "href": "https://exisz.github.io/tally/",
+      "actionsHref": "https://github.com/exisz/tally/actions",
+      "surfaces": [
+        { "id": "cloud", "name": "Cloud", "href": "https://exisz.github.io/tally/cloud/", "statusUrl": "https://exisz.github.io/tally/cloud/status.json", "resultsUrl": "https://exisz.github.io/tally/cloud/results.csv" },
+        { "id": "desktop-mac", "name": "Desktop macOS", "href": "https://exisz.github.io/tally/desktop/mac/", "statusUrl": "https://exisz.github.io/tally/desktop/mac/status.json", "resultsUrl": "https://exisz.github.io/tally/desktop/mac/results.csv" },
+        { "id": "desktop-linux", "name": "Desktop Linux", "href": "https://exisz.github.io/tally/desktop/linux/", "statusUrl": "https://exisz.github.io/tally/desktop/linux/status.json", "resultsUrl": "https://exisz.github.io/tally/desktop/linux/results.csv" }
+      ]
+    },
+    {
+      "id": "peopleclaw",
+      "name": "PeopleClaw",
+      "kind": "product",
+      "repo": "exisz/peopleclaw",
+      "href": "https://exisz.github.io/peopleclaw/",
+      "actionsHref": "https://github.com/exisz/peopleclaw/actions",
+      "surfaces": [
+        { "id": "admin", "name": "Admin App", "href": "https://exisz.github.io/peopleclaw/", "resultsUrl": "https://exisz.github.io/peopleclaw/results.csv" }
+      ]
+    },
+    {
+      "id": "commerce",
+      "name": "Commerce Stores",
+      "kind": "storefront-group",
+      "repo": "exisz/medusa",
+      "href": "e2e/commerce/",
+      "actionsHref": "https://github.com/exisz/medusa/actions",
+      "planned": true,
+      "surfaces": [
+        { "id": "fun-store", "name": "Fun Store", "href": "e2e/commerce/fun-store/", "planned": true },
+        { "id": "annie-time", "name": "Annie Time", "href": "e2e/commerce/annie-time/", "planned": true },
+        { "id": "aussie-style", "name": "Aussie Style", "href": "e2e/commerce/aussie-style/", "planned": true }
+      ]
+    },
+    {
+      "id": "mapspot",
+      "name": "MapSpot",
+      "kind": "product",
+      "repo": "exisz/mapspot.net",
+      "href": "e2e/mapspot/",
+      "actionsHref": "https://github.com/exisz/mapspot.net/actions",
+      "planned": true,
+      "surfaces": [
+        { "id": "web", "name": "Web", "href": "e2e/mapspot/web/", "planned": true }
+      ]
+    },
+    {
+      "id": "xueran",
+      "name": "Xueran DM",
+      "kind": "product",
+      "repo": "exisz/xueran-monorepo",
+      "href": "e2e/xueran/",
+      "actionsHref": "https://github.com/exisz/xueran-monorepo/actions",
+      "planned": true,
+      "surfaces": [
+        { "id": "dm", "name": "DM", "href": "e2e/xueran/dm/", "planned": true }
+      ]
+    }
+  ]
+}
