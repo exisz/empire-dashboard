@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, AlertTriangle, Boxes, CircleDot, Clock3, ExternalLink, Gauge, GitBranch, LayoutDashboard, RadioTower, Search, ShieldCheck, Workflow, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, Boxes, CheckCircle2, CircleDot, Clock3, ExternalLink, FileJson2, Gauge, GitBranch, LayoutDashboard, RadioTower, Search, ShieldCheck, XCircle, Workflow, Zap } from 'lucide-react';
 import clsx from 'clsx';
 import './styles.css';
 
@@ -27,6 +27,7 @@ async function optionalJson(url) { if (!url) return null; try { return await fet
 async function optionalText(url) { if (!url) return null; try { return await fetchText(url); } catch { return null; } }
 function asNumber(value) { const n = Number(value); return Number.isFinite(n) ? n : undefined; }
 function inferSibling(url, file) { return url?.replace(/[^/]+$/, file); }
+function appendPath(url, path) { return url ? `${url.replace(/\/?$/, '/')}${path}` : undefined; }
 function normalizeState(value, failed = 0) {
   const s = String(value || '').toLowerCase();
   if (['passed', 'failed', 'blocked', 'no-report', 'stale', 'planned'].includes(s)) return s;
@@ -39,12 +40,45 @@ function latestRun(runs) {
   const list = Array.isArray(runs) ? runs : Array.isArray(runs?.runs) ? runs.runs : [];
   return list[0] || list.at(-1) || null;
 }
-function pickStatus(status, summary, run, row, surface) {
-  const source = status || summary || run || row || {};
-  const failed = asNumber(source.failed ?? source.unexpected ?? source.failures) ?? 0;
-  const passed = asNumber(source.passed ?? source.expected ?? source.successes) ?? undefined;
-  const skipped = asNumber(source.skipped ?? source.pending) ?? undefined;
-  const flaky = asNumber(source.flaky ?? source.flakes) ?? undefined;
+function leafSuites(suite, parents = []) {
+  const title = suite?.title || suite?.file || '';
+  const nextParents = title ? [...parents, title] : parents;
+  const specs = (suite?.specs || []).map(spec => ({ spec, parents: nextParents, file: spec.file || suite.file }));
+  const children = (suite?.suites || []).flatMap(child => leafSuites(child, nextParents));
+  return [...specs, ...children];
+}
+function normalizePlaywright(json) {
+  if (!json) return { stats: null, tests: [], errors: [] };
+  const tests = (json.suites || []).flatMap(suite => leafSuites(suite)).map(({ spec, parents, file }) => {
+    const test = spec.tests?.[0] || {};
+    const result = test.results?.at(-1) || test.results?.[0] || {};
+    const status = test.status || result.status || (spec.ok ? 'passed' : 'failed');
+    const failed = ['failed', 'timedOut', 'interrupted', 'unexpected'].includes(status) || spec.ok === false;
+    const skipped = status === 'skipped';
+    const flaky = test.status === 'flaky' || (test.results || []).length > 1 && !failed;
+    return {
+      id: spec.id,
+      title: spec.title,
+      journey: parents.filter(Boolean).join(' › '),
+      file: spec.file || file,
+      line: spec.line,
+      projectName: test.projectName,
+      status: skipped ? 'skipped' : flaky ? 'flaky' : failed ? 'failed' : 'passed',
+      duration: result.duration,
+      retry: result.retry,
+      error: result.error?.message || result.errors?.[0]?.message,
+      attachments: result.attachments || []
+    };
+  });
+  return { stats: json.stats || null, tests, errors: json.errors || [] };
+}
+function pickStatus(status, summary, run, row, surface, playwright) {
+  const pwStats = playwright?.stats || {};
+  const source = status || summary || run || row || pwStats || {};
+  const failed = asNumber(source.failed ?? source.unexpected ?? source.failures ?? pwStats.unexpected) ?? 0;
+  const passed = asNumber(source.passed ?? source.expected ?? source.successes ?? pwStats.expected) ?? undefined;
+  const skipped = asNumber(source.skipped ?? source.pending ?? pwStats.skipped) ?? undefined;
+  const flaky = asNumber(source.flaky ?? source.flakes ?? pwStats.flaky) ?? undefined;
   const countedTotal = [passed, failed, skipped, flaky].filter(v => v !== undefined).reduce((a, b) => a + b, 0);
   const total = asNumber(source.total ?? source.tests) ?? (countedTotal || undefined);
   return {
@@ -52,6 +86,8 @@ function pickStatus(status, summary, run, row, surface) {
     state: normalizeState(source.status ?? source.state, failed),
     status,
     summary,
+    playwright,
+    tests: playwright?.tests || summary?.tests || run?.tests || [],
     latestRun: run,
     trendRows: row ? [row] : [],
     passed,
@@ -75,20 +111,23 @@ async function hydrateSurface(surface) {
   const summaryUrl = surface.summaryUrl || inferSibling(statusUrl, 'summary.json');
   const runsUrl = surface.runsUrl || inferSibling(statusUrl, 'runs.json');
   const trendUrl = surface.trendsUrl || surface.historyUrl || surface.resultsUrl || inferSibling(statusUrl, 'history.csv');
+  const playwrightJsonUrl = surface.playwrightJsonUrl || surface.resultsJsonUrl || inferSibling(statusUrl, 'test-results/results.json') || appendPath(surface.href, 'test-results/results.json');
 
-  const [status, summary, runs, trendText] = await Promise.all([
+  const [status, summary, runs, trendText, playwrightRaw] = await Promise.all([
     optionalJson(statusUrl),
     optionalJson(summaryUrl),
     optionalJson(runsUrl),
-    optionalText(trendUrl)
+    optionalText(trendUrl),
+    optionalJson(playwrightJsonUrl)
   ]);
   const rows = trendText ? trendRows(trendText) : [];
   const row = rows.at(-1) || null;
-  const hydrated = pickStatus(status, summary, latestRun(runs), row, surface);
+  const playwright = normalizePlaywright(playwrightRaw);
+  const hydrated = pickStatus(status, summary, latestRun(runs), row, surface, playwright);
   hydrated.trendRows = rows.slice(-6);
-  hydrated.dataUrls = { statusUrl, summaryUrl, runsUrl, trendUrl };
+  hydrated.dataUrls = { statusUrl, summaryUrl, runsUrl, trendUrl, playwrightJsonUrl };
 
-  if (!status && !summary && !runs && !row) return { ...hydrated, state: 'no-report', error: 'No machine-readable E2E data published yet.' };
+  if (!status && !summary && !runs && !row && !playwrightRaw) return { ...hydrated, state: 'no-report', error: 'No machine-readable E2E data published yet.' };
   return hydrated;
 }
 const keyOf = (p, s) => `${p.id}/${s.id}`;
@@ -139,6 +178,7 @@ function App() {
   const failing = live.filter(({ surface }) => surface.state === 'failed').length;
   const planned = surfaces.filter(({ surface }) => surface.state === 'planned').length;
   const noReport = surfaces.filter(({ surface }) => surface.state === 'no-report').length;
+  const testCount = surfaces.reduce((n, { surface }) => n + (surface.tests?.length || 0), 0);
   const selected = surfaces.find(({ project, surface }) => keyOf(project, surface) === selectedKey) || surfaces[0];
   const visibleProjects = projects.filter(p => `${p.name} ${p.repo}`.toLowerCase().includes(filter.toLowerCase()));
 
@@ -173,8 +213,8 @@ function App() {
       <section className="metrics-grid">
         <MetricCard icon={CircleDot} label="Data surfaces" value={live.length || '—'} />
         <MetricCard icon={AlertTriangle} label="Failed" value={failing} tone={failing ? 'danger' : 'good'} />
-        <MetricCard icon={Workflow} label="No report" value={noReport} tone={noReport ? 'warn' : ''} />
-        <MetricCard icon={GitBranch} label="Mode" value="Static JSON SPA" />
+        <MetricCard icon={Workflow} label="Test flows" value={testCount || '—'} />
+        <MetricCard icon={GitBranch} label="Mode" value="Playwright JSON" />
       </section>
 
       <section className="work-grid">
@@ -199,6 +239,7 @@ function DetailCard({ label, value, href }) {
 function ReportView({ project, surface }) {
   const rawReportUrl = surface.reportUrl || surface.href;
   const rows = surface.trendRows || [];
+  const tests = surface.tests || [];
   return <>
     <div className="report-head">
       <div><div className="kicker">{project.name}</div><h2>{surface.name}</h2><div className="report-stats"><StatusPill state={surface.state}/><span>{fmtDate(surface.ts)}</span>{surface.note && <span>{surface.note}</span>}</div></div>
@@ -219,7 +260,9 @@ function ReportView({ project, surface }) {
       </section>
 
       {surface.state === 'planned' && <div className="provisioned"><h3>Surface planned</h3><p>This slot is registered. The project repo should independently publish JSON files, then optionally link a raw HTML report.</p><pre>{surface.href}</pre></div>}
-      {surface.state === 'no-report' && <div className="provisioned"><h3>No machine-readable report yet</h3><p>{surface.error || 'Publish status.json, summary.json/runs.json, or a legacy results.csv to light up this panel.'}</p><pre>{Object.values(surface.dataUrls || {}).filter(Boolean).join('\n') || surface.href}</pre></div>}
+      {surface.state === 'no-report' && <div className="provisioned"><h3>No machine-readable report yet</h3><p>{surface.error || 'Publish status.json, summary.json/runs.json, Playwright JSON reporter output, or a legacy results.csv to light up this panel.'}</p><pre>{Object.values(surface.dataUrls || {}).filter(Boolean).join('\n') || surface.href}</pre></div>}
+
+      {tests.length > 0 && <section className="test-list-wrap"><div className="table-title"><FileJson2 size={15}/> Playwright flows / specs</div><div className="test-list">{tests.map((test, i) => <article className={clsx('test-row', test.status)} key={test.id || `${test.file}-${test.title}-${i}`}><div className="test-status-icon">{test.status === 'passed' ? <CheckCircle2 size={17}/> : test.status === 'failed' ? <XCircle size={17}/> : <CircleDot size={17}/>}</div><div className="test-main"><div className="test-title">{test.title}</div><div className="test-journey">{test.journey || 'User journey not grouped'}{test.file ? ` · ${test.file}${test.line ? `:${test.line}` : ''}` : ''}</div>{test.error && <pre className="test-error">{test.error}</pre>}</div><div className="test-meta"><StatusPill state={test.status === 'skipped' || test.status === 'flaky' ? 'stale' : test.status}/><span>{fmtDuration(test.duration)}</span>{test.projectName && <span>{test.projectName}</span>}</div></article>)}</div></section>}
 
       {rows.length > 0 && <section className="trend-table-wrap"><div className="table-title"><Clock3 size={15}/> Recent trend rows</div><table className="trend-table"><thead><tr><th>Timestamp</th><th>Total</th><th>Passed</th><th>Failed</th><th>Duration</th><th>SHA</th></tr></thead><tbody>{rows.map((row, i) => <tr key={i}><td>{row.timestamp || row.ts || '—'}</td><td>{row.total || row.tests || '—'}</td><td>{row.passed || '—'}</td><td>{row.failed || '—'}</td><td>{fmtDuration(row.duration || row.durationMs)}</td><td>{row.sha || row.commit || '—'}</td></tr>)}</tbody></table></section>}
     </div>

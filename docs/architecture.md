@@ -17,13 +17,13 @@ Empire Dashboard static SPA
     └── Commerce / MapSpot / Xueran planned surfaces
 ```
 
-Primary UX is JSON-data-driven cards and tables. Raw HTML reports are links that open in a new tab only; iframe embedding is not the main dashboard experience.
+Primary UX is JSON-data-driven cards and tables, including the official Playwright JSON reporter test/spec tree. Raw HTML reports are links that open in a new tab only; iframe embedding is not the main dashboard experience.
 
 ## Layers
 
 1. **Shell** — static SPA, global navigation, cross-project summaries, module routing.
 2. **Registry** — `modules/e2e/projects.json`, listing projects, surfaces, data URLs, raw report URLs, and Actions URLs.
-3. **Surface contract** — each publisher emits `status.json`, `summary.json` or `runs.json`, trends/history JSON or CSV, and optional artifact/report URLs.
+3. **Surface contract** — each publisher emits `status.json`, `summary.json` or `runs.json`, official Playwright JSON (`playwright-results.json` or `test-results/results.json`), trends/history JSON or CSV, and optional artifact/report URLs.
 4. **Publishers** — independent repo workflows running on GitHub-hosted free runners or self-hosted runners per project policy.
 5. **Artifacts** — static files on project-owned GitHub Pages or another stable static host.
 

@@ -53,6 +53,27 @@ Compatibility aliases such as `pass`/`fail` may be accepted by the SPA, but publ
 
 Minimum useful fields: `status`, `ts`, and either `runUrl` or `reportUrl`.
 
+## Playwright official JSON
+
+Empire Dashboard should support the official Playwright JSON reporter shape. Preferred publisher command:
+
+```bash
+npx playwright test --reporter=html,json
+# or set PLAYWRIGHT_JSON_OUTPUT_NAME=public/latest/<project>/<surface>/playwright-results.json
+```
+
+Supported paths in registry:
+
+```json
+{
+  "playwrightJsonUrl": "https://example.github.io/project/latest/web/playwright-results.json"
+}
+```
+
+The dashboard reads `stats`, `suites[].specs[]`, nested suites, test projects, retries, durations, errors, attachments, and renders the user-journey/spec list itself. Raw HTML report remains a link, not the primary UI.
+
+Important: keep Playwright HTML, traces, videos, screenshots as optional artifact links; publish sanitized JSON for the Empire UI.
+
 ## summary.json
 
 ```json
@@ -110,7 +131,7 @@ JSON is also acceptable as either `{ "runs": [...] }` or an array of run objects
 
 ## Optional artifact fields
 
-Any latest/status/summary/run object may include:
+Any latest/status/summary/run object may include. For user journeys / flows, prefer `tests[]` or the official Playwright JSON above:
 
 - `runUrl` — CI run URL.
 - `reportUrl` / `rawReportUrl` — raw HTML report/artifact URL.

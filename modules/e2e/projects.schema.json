@@ -29,6 +29,8 @@
                 "summaryUrl": { "type": "string" },
                 "runsUrl": { "type": "string" },
                 "resultsUrl": { "type": "string" },
+                "resultsJsonUrl": { "type": "string" },
+                "playwrightJsonUrl": { "type": "string" },
                 "trendsUrl": { "type": "string" },
                 "historyUrl": { "type": "string" },
                 "reportUrl": { "type": "string" },
