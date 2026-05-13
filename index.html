@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Empire Dashboard · E2E Module</title>
+  <link rel="stylesheet" href="assets/app.css" />
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">Empire Dashboard</p>
+        <h1>E2E Module</h1>
+        <p class="lede">Composable Playwright command centre. Every project publishes its own surface; the empire shell reads whatever contract it can find.</p>
+      </div>
+      <div class="hero-card" id="fleet-summary">
+        <span class="label">Fleet status</span>
+        <strong>Loading…</strong>
+      </div>
+    </section>
+
+    <nav class="module-tabs" aria-label="Empire modules">
+      <a class="active" href="#e2e">E2E</a>
+      <a aria-disabled="true">Deploys</a>
+      <a aria-disabled="true">Incidents</a>
+      <a aria-disabled="true">Costs</a>
+    </nav>
+
+    <section id="e2e" class="module-panel">
+      <div class="panel-head">
+        <div>
+          <p class="eyebrow">Module / E2E</p>
+          <h2>Projects</h2>
+        </div>
+        <div class="tools">
+          <input id="filter" type="search" placeholder="Filter projects…" />
+          <a class="ghost" href="docs/e2e-publisher-contract.md">Publisher contract</a>
+        </div>
+      </div>
+      <div id="project-grid" class="project-grid" aria-live="polite"></div>
+    </section>
+  </main>
+  <script type="module" src="assets/app.js"></script>
+</body>
+</html>
