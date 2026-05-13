@@ -132,7 +132,7 @@ async function hydrateSurface(surface) {
 }
 const keyOf = (p, s) => `${p.id}/${s.id}`;
 const stateLabel = (s) => ({ passed: 'Passed', failed: 'Failed', blocked: 'Blocked', 'no-report': 'No report', stale: 'Stale', planned: 'Planned' }[s] || 'No report');
-const fmtDuration = (ms) => { const n = Number(ms || 0); if (!n) return '—'; return n > 10000 ? `${Math.round(n / 1000)}s` : `${n}ms`; };
+const fmtDuration = (ms) => { const n = Number(ms || 0); if (!n) return '—'; return n >= 10000 ? `${Math.round(n / 1000)}s` : `${Math.round(n)}ms`; };
 const fmtDate = (ts) => ts ? new Date(ts).toLocaleString() : 'not published yet';
 function projectState(project) {
   const states = project.surfaces.map(s => s.state);
