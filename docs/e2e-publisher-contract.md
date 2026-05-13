@@ -1,20 +1,39 @@
 # Empire Dashboard → E2E Module publisher contract
 
-The dashboard is intentionally composable, but the operator experience is one SPA. A project can publish a full Playwright HTML report, or only a tiny status file. The Empire shell embeds available reports inside the dashboard and still works when a publisher is partial.
+Empire Dashboard is a static reader SPA. Project repositories own their E2E execution and publish sanitized data at stable URLs. The dashboard reads those JSON/CSV files at runtime and renders the primary UX itself.
 
-## Preferred folder shape
+Raw Playwright/custom HTML reports are optional artifacts. They should be exposed as links that open in a new tab; they are not embedded as the primary operator view.
 
-Publish each independently-owned surface to:
+## Preferred project-published files
+
+Publish each independently-owned surface to a stable project-owned location, for example:
 
 ```text
 e2e/<project-id>/<surface-id>/
-  index.html              # Playwright HTML report or custom surface UI
-  status.json             # small machine-readable latest status
-  results.csv             # append-only trend data
+  status.json             # latest machine-readable state
+  summary.json            # latest aggregate counts/timing, or...
+  runs.json               # recent runs list with latest run first
+  history.csv             # trend data, or history.json/trends.json
+  report/ or index.html   # optional raw HTML report/artifact
   test-results/           # optional traces/videos/screenshots
 ```
 
-Existing external dashboards can also be registered by URL, e.g. Tally and PeopleClaw.
+Legacy publishers can keep using `status.json` + `results.csv`; the dashboard will render the minimal data it can find.
+
+## Required state vocabulary
+
+Publishers should use these states:
+
+- `passed` — latest completed run passed.
+- `failed` — latest completed run failed.
+- `blocked` — workflow could not execute because of an external dependency, missing secret, runner outage, deploy outage, or known prerequisite issue.
+- `no-report` — no machine-readable latest report is available.
+- `stale` — latest report exists but is older than the publisher's freshness policy.
+- `planned` — dashboard slot exists but the publisher is not live yet.
+
+Compatibility aliases such as `pass`/`fail` may be accepted by the SPA, but publishers should emit the canonical values above.
+
+**Last-known-good rule:** `blocked` and `no-report` must not overwrite the last-known-good report pointer. Keep `lastGoodReportUrl` / `lastKnownGoodReportUrl` pointing at the last `passed` raw report or artifact until a newer `passed` run exists.
 
 ## status.json
 
@@ -23,51 +42,86 @@ Existing external dashboards can also be registered by URL, e.g. Tally and Peopl
   "schema": "empire.e2e.status.v1",
   "project": "commerce",
   "surface": "fun-store",
-  "status": "pass",
+  "status": "passed",
+  "ts": "2026-05-13T08:32:00Z",
+  "sha": "abc1234",
+  "runUrl": "https://github.com/exisz/medusa/actions/runs/...",
+  "reportUrl": "https://exisz.github.io/medusa/e2e/fun-store/report/",
+  "lastGoodReportUrl": "https://exisz.github.io/medusa/e2e/fun-store/report/"
+}
+```
+
+Minimum useful fields: `status`, `ts`, and either `runUrl` or `reportUrl`.
+
+## summary.json
+
+```json
+{
+  "schema": "empire.e2e.summary.v1",
+  "project": "commerce",
+  "surface": "fun-store",
+  "status": "passed",
+  "total": 13,
   "passed": 12,
   "failed": 0,
   "flaky": 0,
   "skipped": 1,
-  "duration": 73422,
+  "durationMs": 73422,
   "ts": "2026-05-13T08:32:00Z",
   "sha": "abc1234",
   "runUrl": "https://github.com/exisz/medusa/actions/runs/...",
-  "reportUrl": "https://exisz.github.io/empire-dashboard/e2e/commerce/fun-store/"
+  "reportUrl": "https://exisz.github.io/medusa/e2e/fun-store/report/",
+  "lastGoodReportUrl": "https://exisz.github.io/medusa/e2e/fun-store/report/"
 }
 ```
 
-Minimum useful fields: `passed`, `failed`, `duration`, `ts`.
+## runs.json
 
-## results.csv
+```json
+{
+  "schema": "empire.e2e.runs.v1",
+  "runs": [
+    {
+      "id": "1234567890",
+      "status": "passed",
+      "timestamp": "2026-05-13T08:32:00Z",
+      "sha": "abc1234",
+      "total": 13,
+      "passed": 12,
+      "failed": 0,
+      "durationMs": 73422,
+      "runUrl": "https://github.com/exisz/medusa/actions/runs/1234567890",
+      "reportUrl": "https://exisz.github.io/medusa/e2e/fun-store/report/"
+    }
+  ]
+}
+```
+
+## trends/history
+
+CSV is acceptable:
 
 ```csv
-timestamp,sha,duration,total,passed,failed
-2026-05-13T08:32:00Z,abc1234,73422,13,12,0
+timestamp,sha,duration,total,passed,failed,status,runUrl,reportUrl
+2026-05-13T08:32:00Z,abc1234,73422,13,12,0,passed,https://github.com/exisz/medusa/actions/runs/1234567890,https://exisz.github.io/medusa/e2e/fun-store/report/
 ```
 
-## Publishing from another repo
+JSON is also acceptable as either `{ "runs": [...] }` or an array of run objects.
 
-Each project keeps its own test runner and secrets. To publish into this gateway repo, add a repo secret:
+## Optional artifact fields
 
-- `EMPIRE_DASHBOARD_PUBLISH_TOKEN` — PAT or fine-grained token with write access to `exisz/empire-dashboard` contents.
+Any latest/status/summary/run object may include:
 
-Then use `peaceiris/actions-gh-pages@v4` with:
+- `runUrl` — CI run URL.
+- `reportUrl` / `rawReportUrl` — raw HTML report/artifact URL.
+- `lastGoodReportUrl` / `lastKnownGoodReportUrl` — last passed raw report URL.
+- `traceUrl`, `videoUrl`, `screenshotsUrl` — optional debugging artifacts.
+- `note` / `message` — short sanitized operator note.
 
-```yaml
-- name: Publish E2E surface to Empire Dashboard
-  if: always()
-  uses: peaceiris/actions-gh-pages@v4
-  with:
-    personal_token: ${{ secrets.EMPIRE_DASHBOARD_PUBLISH_TOKEN }}
-    external_repository: exisz/empire-dashboard
-    publish_branch: gh-pages
-    publish_dir: ./public
-    destination_dir: e2e/<project-id>/<surface-id>
-    keep_files: true
-```
+## Publishing model
 
-Do not put payment tokens, test card details, webhook URLs, or login credentials in workflow YAML. Use GitHub Secrets. Test card numbers can be injected from secrets too when they are provider-specific.
+Each project keeps its own test runner, secrets, schedule, and runner selection. Use GitHub Secrets/environment secrets for credentials, payment-provider keys, login users, and test card data.
 
-## Micro-frontend rule
+For now, do **not** wire project repos to trigger Empire Dashboard via `repository_dispatch`, and do **not** publish into this repo as the default path. Publish data to the project repo's own GitHub Pages or another stable static host, then register the URLs in `modules/e2e/projects.json`.
 
-The gateway owns navigation, registry, cross-project summary, and the viewing frame. Each surface owns its own `index.html` and assets. The shell embeds the surface report in-place instead of sending the operator to a separate system.
+A future Empire ingest workflow may mirror/validate project data, but it should be treated as optional infrastructure, not the current recommendation.

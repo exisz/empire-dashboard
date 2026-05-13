@@ -2,28 +2,39 @@
 
 ## Current direction
 
-Empire Dashboard is a single SPA shell with composable modules. The first module is E2E.
+Empire Dashboard is a static reader SPA. It does **not** run project tests, own project secrets, or get triggered by project repositories.
+
+Each project repository independently runs its E2E workflow on the runner it chooses, publishes sanitized machine-readable JSON/CSV at stable URLs, and optionally publishes a raw Playwright/custom HTML report. Empire Dashboard fetches those files at runtime and renders the operational view itself.
 
 The UX must feel like one system:
 
 ```text
-Empire Dashboard
+Empire Dashboard static SPA
 └── E2E Module
     ├── Tally / Cloud
     ├── Tally / Desktop macOS
     ├── PeopleClaw / Admin
-    └── Commerce / Fun Store / Annie Time / Aussie Style
+    └── Commerce / MapSpot / Xueran planned surfaces
 ```
 
-Projects may still publish from separate repos, but users should not feel bounced between separate dashboards. The SPA embeds surface reports and reads shared status/trend contracts.
+Primary UX is JSON-data-driven cards and tables. Raw HTML reports are links that open in a new tab only; iframe embedding is not the main dashboard experience.
 
 ## Layers
 
-1. **Shell** — one SPA, global navigation, cross-project summaries, module routing.
-2. **Registry** — `modules/e2e/projects.json`, listing projects, surfaces, status URLs, report URLs.
-3. **Surface contract** — each publisher can emit `index.html`, `status.json`, `results.csv`, and optional traces/videos.
-4. **Publishers** — independent repo workflows running on self-hosted CI runners.
-5. **Artifacts** — static files on GitHub Pages for now.
+1. **Shell** — static SPA, global navigation, cross-project summaries, module routing.
+2. **Registry** — `modules/e2e/projects.json`, listing projects, surfaces, data URLs, raw report URLs, and Actions URLs.
+3. **Surface contract** — each publisher emits `status.json`, `summary.json` or `runs.json`, trends/history JSON or CSV, and optional artifact/report URLs.
+4. **Publishers** — independent repo workflows running on GitHub-hosted free runners or self-hosted runners per project policy.
+5. **Artifacts** — static files on project-owned GitHub Pages or another stable static host.
+
+## Current non-goals
+
+- No `repository_dispatch` path from project repos into Empire Dashboard.
+- No Empire-trigger-on-project-run workflow.
+- No dashboard-owned cross-repo write token for project E2E output.
+- No project secrets inside this dashboard repo.
+
+A future centralized ingest workflow could validate and mirror project data, but that is optional and not the recommended current path. The current path is simpler: projects publish their own immutable/latest JSON outputs; Empire reads them.
 
 ## Improvements to make next
 
@@ -33,43 +44,29 @@ Right now changing the registry requires a dashboard repo commit. Better options
 
 - keep `projects.json` in this repo for v1 simplicity
 - later allow module registries under `modules/e2e/registry.d/*.json`
-- eventually let project publishers submit/update only their own manifest file
+- eventually let project publishers expose their own manifest URL that the static SPA reads
 
-### 2. Add an ingestion workflow
+### 2. Normalize run history
 
-Instead of every repo pushing directly to `gh-pages`, use one repository_dispatch API:
-
-```text
-project workflow -> repository_dispatch -> Empire ingest workflow -> gh-pages
-```
-
-Benefits:
-
-- one write path
-- validation before publish
-- no race conditions between publishers
-- easier audit trail
-
-### 3. Store normalized run history
-
-Current `results.csv` is good enough for static trends, but a normalized shape is better:
+Preferred shape for each project-owned publisher:
 
 ```text
-runs/<project>/<surface>/<run-id>/manifest.json
-runs/<project>/<surface>/<run-id>/report/
 latest/<project>/<surface>/status.json
-latest/<project>/<surface>/report/
+latest/<project>/<surface>/summary.json
+latest/<project>/<surface>/runs.json
+latest/<project>/<surface>/history.csv or history.json
+latest/<project>/<surface>/report/        # optional raw HTML report
 ```
 
-Then the dashboard can show latest + history without relying on ad-hoc CSV parsing.
+Then the dashboard can show latest + history without parsing ad-hoc reports.
 
-### 4. Keep external secrets out of the dashboard
+### 3. Keep external secrets out of the dashboard
 
 The dashboard should never receive payment credentials, test user passwords, webhook tokens, or card data. Project workflows own those via GitHub Secrets/environment secrets. The dashboard only receives sanitized output.
 
-### 5. Runner taxonomy
+### 4. Runner taxonomy
 
-Use consistent labels:
+Use consistent labels when self-hosted runners are used:
 
 ```yaml
 runs-on: [self-hosted, linux, x64, e2e]
@@ -77,7 +74,7 @@ runs-on: [self-hosted, linux, x64, e2e]
 
 Add project labels only when needed: `commerce`, `peopleclaw`, `tally-cloud`.
 
-### 6. Module boundary
+### 5. Module boundary
 
 E2E is one module. Later modules should follow the same pattern:
 
@@ -87,4 +84,4 @@ E2E is one module. Later modules should follow the same pattern:
 - SEO/Search
 - Revenue
 
-Each module gets a registry + surface contract, but the shell stays one SPA.
+Each module gets a registry + data contract, but the shell stays one static reader SPA.

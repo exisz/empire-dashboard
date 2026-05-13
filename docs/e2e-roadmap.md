@@ -1,41 +1,39 @@
 # E2E module roadmap
 
-## Phase 0 — gateway shell (done)
+## Phase 0 — static reader shell (done)
 
 - Public Empire Dashboard shell on GitHub Pages
 - E2E registry with existing dashboards:
   - Tally
   - PeopleClaw
 - Planned slots for Commerce Stores, MapSpot, Xueran
-- Publisher contract for independent project publishing
+- Publisher contract for independent project-owned publishing
+- Primary dashboard UX renders from JSON/CSV data, not iframes
 
-## Phase 1 — standardize publishers
+## Phase 1 — standardize project publishers
 
-Move each project toward the same output shape:
+Move each project toward the same project-owned output shape:
 
 ```text
-e2e/<project>/<surface>/index.html
 e2e/<project>/<surface>/status.json
-e2e/<project>/<surface>/results.csv
+e2e/<project>/<surface>/summary.json or runs.json
+e2e/<project>/<surface>/history.csv or history.json
+e2e/<project>/<surface>/report/       # optional raw HTML report link only
 ```
 
 Priority:
 
 1. Commerce Stores — purchasing/payment-critical, 3 store surfaces
-2. PeopleClaw — already close; migrate from standalone dashboard into gateway publishing
-3. Tally — keep standalone dashboard, also publish/alias into gateway
-4. MapSpot — convert artifact-only workflow into dashboard surface
-5. Xueran — convert artifact-only workflow into dashboard surface
+2. PeopleClaw — add `status.json`/`summary.json` beside existing trend output
+3. Tally — keep standalone dashboard, publish/alias machine-readable JSON per surface
+4. MapSpot — convert artifact-only workflow into JSON-published dashboard surface
+5. Xueran — convert artifact-only workflow into JSON-published dashboard surface
 
-## Phase 2 — self-hosted runner policy
+## Phase 2 — self-hosted/free runner policy
 
-E2E workflows should run on self-hosted runners by default. GitHub-hosted runners remain acceptable only for:
+E2E workflows run in each project repo. GitHub free hosted runners are acceptable for public/non-secret smoke tests. Self-hosted runners should be used for private, payment, browser, or environment-specific tests.
 
-- public OSS smoke tests with no secrets
-- cheap non-payment tests
-- temporary fallback while a labelled runner is unavailable
-
-Suggested labels:
+Suggested self-hosted labels:
 
 ```yaml
 runs-on: [self-hosted, linux, x64, e2e]
@@ -64,8 +62,8 @@ All credentials, test card data, and payment-provider keys must live in GitHub S
 
 ## Phase 4 — dashboard composition hardening
 
-- Optional `surface.json` richer manifest for custom micro-frontends
-- stale-run detection
+- stale-run detection using publisher freshness policy
+- richer trend/history tables
+- fail-open rendering for malformed project data
+- optional future ingest/mirroring workflow for validation only
 - per-module navigation: E2E, Deploys, Incidents, Costs
-- cross-repo publish token rotation guidance
-- fail-open rendering for malformed project surfaces

@@ -26,7 +26,14 @@
                 "name": { "type": "string" },
                 "href": { "type": "string" },
                 "statusUrl": { "type": "string" },
+                "summaryUrl": { "type": "string" },
+                "runsUrl": { "type": "string" },
                 "resultsUrl": { "type": "string" },
+                "trendsUrl": { "type": "string" },
+                "historyUrl": { "type": "string" },
+                "reportUrl": { "type": "string" },
+                "runUrl": { "type": "string" },
+                "lastGoodReportUrl": { "type": "string" },
                 "planned": { "type": "boolean" }
               }
             }

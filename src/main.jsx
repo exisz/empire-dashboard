@@ -1,56 +1,103 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, AlertTriangle, Boxes, CircleDot, ExternalLink, Gauge, GitBranch, LayoutDashboard, RadioTower, Search, ShieldCheck, Workflow, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, Boxes, CircleDot, Clock3, ExternalLink, Gauge, GitBranch, LayoutDashboard, RadioTower, Search, ShieldCheck, Workflow, Zap } from 'lucide-react';
 import clsx from 'clsx';
 import './styles.css';
 
 const registryUrl = `${import.meta.env.BASE_URL}modules/e2e/projects.json`;
+const STATES = ['passed', 'failed', 'blocked', 'no-report', 'stale', 'planned'];
 
-function csvLast(text) {
-  const rows = text.trim().split(/\r?\n/).filter(Boolean);
-  if (rows.length < 2) return null;
-  const cols = rows[0].split(',');
-  const vals = rows.at(-1).split(',');
-  return Object.fromEntries(cols.map((c, i) => [c, vals[i] ?? '']));
+function trendRows(text) {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  if (/^[{[]/.test(trimmed)) {
+    try {
+      const data = JSON.parse(trimmed);
+      return Array.isArray(data) ? data : Array.isArray(data.runs) ? data.runs : Array.isArray(data.history) ? data.history : [];
+    } catch {}
+  }
+  const rows = trimmed.split(/\r?\n/).filter(Boolean);
+  if (rows.length < 2) return [];
+  const cols = rows[0].split(',').map(c => c.trim());
+  return rows.slice(1).map(row => Object.fromEntries(row.split(',').map((v, i) => [cols[i], v ?? ''])));
 }
 async function fetchJson(url) { return (await fetch(url, { cache: 'no-store' })).json(); }
 async function fetchText(url) { return (await fetch(url, { cache: 'no-store' })).text(); }
-async function detectReportState(surface, hydrated) {
-  try {
-    const html = await fetchText(surface.href);
-    if (/No Playwright report|No report available|Placeholder/i.test(html)) {
-      return { ...hydrated, state: 'empty', reportEmpty: true };
-    }
-  } catch {}
-  return hydrated;
+async function optionalJson(url) { if (!url) return null; try { return await fetchJson(url); } catch { return null; } }
+async function optionalText(url) { if (!url) return null; try { return await fetchText(url); } catch { return null; } }
+function asNumber(value) { const n = Number(value); return Number.isFinite(n) ? n : undefined; }
+function inferSibling(url, file) { return url?.replace(/[^/]+$/, file); }
+function normalizeState(value, failed = 0) {
+  const s = String(value || '').toLowerCase();
+  if (['passed', 'failed', 'blocked', 'no-report', 'stale', 'planned'].includes(s)) return s;
+  if (['pass', 'success', 'ok', 'green'].includes(s)) return 'passed';
+  if (['fail', 'failure', 'red'].includes(s)) return 'failed';
+  if (['empty', 'missing', 'unknown', 'none'].includes(s)) return 'no-report';
+  return Number(failed) > 0 ? 'failed' : 'passed';
+}
+function latestRun(runs) {
+  const list = Array.isArray(runs) ? runs : Array.isArray(runs?.runs) ? runs.runs : [];
+  return list[0] || list.at(-1) || null;
+}
+function pickStatus(status, summary, run, row, surface) {
+  const source = status || summary || run || row || {};
+  const failed = asNumber(source.failed ?? source.unexpected ?? source.failures) ?? 0;
+  const passed = asNumber(source.passed ?? source.expected ?? source.successes) ?? undefined;
+  const skipped = asNumber(source.skipped ?? source.pending) ?? undefined;
+  const flaky = asNumber(source.flaky ?? source.flakes) ?? undefined;
+  const countedTotal = [passed, failed, skipped, flaky].filter(v => v !== undefined).reduce((a, b) => a + b, 0);
+  const total = asNumber(source.total ?? source.tests) ?? (countedTotal || undefined);
+  return {
+    ...surface,
+    state: normalizeState(source.status ?? source.state, failed),
+    status,
+    summary,
+    latestRun: run,
+    trendRows: row ? [row] : [],
+    passed,
+    failed,
+    skipped,
+    flaky,
+    total,
+    duration: source.duration ?? source.durationMs ?? source.elapsedMs,
+    ts: source.ts ?? source.timestamp ?? source.updatedAt ?? source.completedAt,
+    sha: source.sha ?? source.commit,
+    runUrl: source.runUrl ?? source.actionsUrl ?? surface.runUrl,
+    reportUrl: source.reportUrl ?? source.rawReportUrl ?? surface.reportUrl ?? surface.href,
+    lastGoodReportUrl: source.lastGoodReportUrl ?? source.lastKnownGoodReportUrl ?? surface.lastGoodReportUrl,
+    note: source.note ?? source.message
+  };
 }
 async function hydrateSurface(surface) {
-  if (surface.planned) return { ...surface, state: 'planned' };
-  try {
-    if (surface.statusUrl) {
-      const status = await fetchJson(surface.statusUrl);
-      const failed = Number(status.failed ?? status.unexpected ?? 0);
-      const passed = Number(status.passed ?? status.expected ?? 0);
-      return detectReportState(surface, { ...surface, state: failed > 0 ? 'fail' : 'pass', status, passed, failed, duration: status.duration, ts: status.ts });
-    }
-    if (surface.resultsUrl) {
-      const row = csvLast(await fetchText(surface.resultsUrl));
-      if (row) {
-        const failed = Number(row.failed ?? 0), passed = Number(row.passed ?? 0);
-        return detectReportState(surface, { ...surface, state: failed > 0 ? 'fail' : 'pass', passed, failed, duration: row.duration, ts: row.timestamp });
-      }
-    }
-    return detectReportState(surface, { ...surface, state: 'unknown' });
-  } catch (error) {
-    return { ...surface, state: 'unknown', error: String(error.message || error) };
-  }
+  if (surface.planned) return { ...surface, state: 'planned', reportUrl: surface.reportUrl ?? surface.href };
+
+  const statusUrl = surface.statusUrl;
+  const summaryUrl = surface.summaryUrl || inferSibling(statusUrl, 'summary.json');
+  const runsUrl = surface.runsUrl || inferSibling(statusUrl, 'runs.json');
+  const trendUrl = surface.trendsUrl || surface.historyUrl || surface.resultsUrl || inferSibling(statusUrl, 'history.csv');
+
+  const [status, summary, runs, trendText] = await Promise.all([
+    optionalJson(statusUrl),
+    optionalJson(summaryUrl),
+    optionalJson(runsUrl),
+    optionalText(trendUrl)
+  ]);
+  const rows = trendText ? trendRows(trendText) : [];
+  const row = rows.at(-1) || null;
+  const hydrated = pickStatus(status, summary, latestRun(runs), row, surface);
+  hydrated.trendRows = rows.slice(-6);
+  hydrated.dataUrls = { statusUrl, summaryUrl, runsUrl, trendUrl };
+
+  if (!status && !summary && !runs && !row) return { ...hydrated, state: 'no-report', error: 'No machine-readable E2E data published yet.' };
+  return hydrated;
 }
 const keyOf = (p, s) => `${p.id}/${s.id}`;
-const stateLabel = (s) => s === 'pass' ? 'Operational' : s === 'fail' ? 'Failing' : s === 'empty' ? 'No Report' : s === 'planned' ? 'Provisioned' : 'Unknown';
+const stateLabel = (s) => ({ passed: 'Passed', failed: 'Failed', blocked: 'Blocked', 'no-report': 'No report', stale: 'Stale', planned: 'Planned' }[s] || 'No report');
 const fmtDuration = (ms) => { const n = Number(ms || 0); if (!n) return '—'; return n > 10000 ? `${Math.round(n / 1000)}s` : `${n}ms`; };
+const fmtDate = (ts) => ts ? new Date(ts).toLocaleString() : 'not published yet';
 function projectState(project) {
   const states = project.surfaces.map(s => s.state);
-  return project.planned ? 'planned' : states.includes('fail') ? 'fail' : states.includes('pass') ? 'pass' : 'unknown';
+  return project.planned ? 'planned' : states.includes('failed') ? 'failed' : states.includes('blocked') ? 'blocked' : states.includes('stale') ? 'stale' : states.includes('passed') ? 'passed' : states.every(s => s === 'planned') ? 'planned' : 'no-report';
 }
 function StatusPill({ state }) {
   return <span className={clsx('status-pill', state)}><span className="status-dot" />{stateLabel(state)}</span>;
@@ -58,7 +105,7 @@ function StatusPill({ state }) {
 function MetricCard({ icon: Icon, label, value, tone }) {
   return <div className={clsx('metric-card', tone)}><Icon size={17} /><div><span>{label}</span><strong>{value}</strong></div></div>;
 }
-function SurfaceButton({ project, surface, active, onClick }) {
+function SurfaceButton({ surface, active, onClick }) {
   return <button className={clsx('surface-button', active && 'active')} onClick={onClick}>
     <div className="surface-main"><span>{surface.name}</span><StatusPill state={surface.state} /></div>
     <div className="surface-meta"><span>P {surface.passed ?? '—'}</span><span>F {surface.failed ?? '—'}</span><span>{fmtDuration(surface.duration)}</span></div>
@@ -88,10 +135,10 @@ function App() {
   }, []);
 
   const surfaces = projects.flatMap(p => p.surfaces.map(s => ({ project: p, surface: s })));
-  const live = surfaces.filter(({ surface }) => ['pass', 'fail'].includes(surface.state));
-  const failing = live.filter(({ surface }) => surface.state === 'fail').length;
+  const live = surfaces.filter(({ surface }) => ['passed', 'failed', 'blocked', 'stale'].includes(surface.state));
+  const failing = live.filter(({ surface }) => surface.state === 'failed').length;
   const planned = surfaces.filter(({ surface }) => surface.state === 'planned').length;
-  const empty = surfaces.filter(({ surface }) => surface.state === 'empty').length;
+  const noReport = surfaces.filter(({ surface }) => surface.state === 'no-report').length;
   const selected = surfaces.find(({ project, surface }) => keyOf(project, surface) === selectedKey) || surfaces[0];
   const visibleProjects = projects.filter(p => `${p.name} ${p.repo}`.toLowerCase().includes(filter.toLowerCase()));
 
@@ -112,22 +159,22 @@ function App() {
       <div className="ops-card">
         <div className="ops-card-head"><Activity size={16}/><span>Fleet Signal</span></div>
         <strong>{live.length ? `${live.length - failing}/${live.length}` : '—'}</strong>
-        <p>{surfaces.length || '—'} surfaces registered · {planned} provisioned · {empty} no report</p>
+        <p>{surfaces.length || '—'} surfaces registered · {planned} planned · {noReport} no report</p>
       </div>
       <div className="sidebar-links"><a href="docs/e2e-publisher-contract.md">Publisher contract</a><a href="docs/e2e-roadmap.md">E2E roadmap</a></div>
     </aside>
 
     <section className="main-plane">
       <header className="command-bar">
-        <div><div className="kicker"><Zap size={14}/> Empire Dashboard / E2E</div><h1>Unified test operations console</h1></div>
+        <div><div className="kicker"><Zap size={14}/> Empire Dashboard / E2E</div><h1>JSON-fed test operations console</h1></div>
         <div className="search-box"><Search size={16}/><input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Search projects…" /></div>
       </header>
 
       <section className="metrics-grid">
-        <MetricCard icon={CircleDot} label="Live surfaces" value={live.length || '—'} />
-        <MetricCard icon={AlertTriangle} label="Failing" value={failing} tone={failing ? 'danger' : 'good'} />
-        <MetricCard icon={Workflow} label="No report" value={empty} tone={empty ? 'warn' : ''} />
-        <MetricCard icon={GitBranch} label="Mode" value="Composed SPA" />
+        <MetricCard icon={CircleDot} label="Data surfaces" value={live.length || '—'} />
+        <MetricCard icon={AlertTriangle} label="Failed" value={failing} tone={failing ? 'danger' : 'good'} />
+        <MetricCard icon={Workflow} label="No report" value={noReport} tone={noReport ? 'warn' : ''} />
+        <MetricCard icon={GitBranch} label="Mode" value="Static JSON SPA" />
       </section>
 
       <section className="work-grid">
@@ -135,7 +182,7 @@ function App() {
           {error && <div className="empty">Registry offline: {error}</div>}
           {visibleProjects.map(project => <article className="project-group" key={project.id}>
             <div className="project-title"><div><h2>{project.name}</h2><span>{project.repo || 'external publisher'}</span></div><StatusPill state={projectState(project)} /></div>
-            <div className="surface-list">{project.surfaces.map(surface => <SurfaceButton key={surface.id} project={project} surface={surface} active={selectedKey === keyOf(project, surface)} onClick={() => select(project, surface)} />)}</div>
+            <div className="surface-list">{project.surfaces.map(surface => <SurfaceButton key={surface.id} surface={surface} active={selectedKey === keyOf(project, surface)} onClick={() => select(project, surface)} />)}</div>
           </article>)}
         </div>
 
@@ -146,15 +193,35 @@ function App() {
     </section>
   </main>;
 }
+function DetailCard({ label, value, href }) {
+  return <div className="detail-card"><span>{label}</span>{href && value !== '—' ? <a href={href} target="_blank" rel="noreferrer">{value}<ExternalLink size={13}/></a> : <strong>{value ?? '—'}</strong>}</div>;
+}
 function ReportView({ project, surface }) {
-  const planned = surface.state === 'planned';
+  const rawReportUrl = surface.reportUrl || surface.href;
+  const rows = surface.trendRows || [];
   return <>
     <div className="report-head">
-      <div><div className="kicker">{project.name}</div><h2>{surface.name}</h2><div className="report-stats"><StatusPill state={surface.state}/><span>pass {surface.passed ?? '—'}</span><span>fail {surface.failed ?? '—'}</span><span>{fmtDuration(surface.duration)}</span><span>{surface.ts ? new Date(surface.ts).toLocaleString() : 'not published yet'}</span></div></div>
-      <div className="report-actions"><a href={surface.href} target="_blank" rel="noreferrer">Raw report <ExternalLink size={13}/></a>{project.actionsHref && <a href={project.actionsHref} target="_blank" rel="noreferrer">Actions <ExternalLink size={13}/></a>}</div>
+      <div><div className="kicker">{project.name}</div><h2>{surface.name}</h2><div className="report-stats"><StatusPill state={surface.state}/><span>{fmtDate(surface.ts)}</span>{surface.note && <span>{surface.note}</span>}</div></div>
+      <div className="report-actions">{rawReportUrl && <a href={rawReportUrl} target="_blank" rel="noreferrer">Raw report <ExternalLink size={13}/></a>}{project.actionsHref && <a href={project.actionsHref} target="_blank" rel="noreferrer">Actions <ExternalLink size={13}/></a>}</div>
     </div>
-    <div className="report-body">
-      {planned ? <div className="provisioned"><h3>Surface provisioned</h3><p>This slot already exists in the Empire SPA. The project publisher should drop <code>index.html</code>, <code>status.json</code>, and <code>results.csv</code> to this destination.</p><pre>{surface.href}</pre></div> : <iframe title={`${project.name} ${surface.name}`} src={surface.href} />}
+    <div className="report-body data-view">
+      <section className="detail-grid">
+        <DetailCard label="Status" value={stateLabel(surface.state)} />
+        <DetailCard label="Passed" value={surface.passed ?? '—'} />
+        <DetailCard label="Failed" value={surface.failed ?? '—'} />
+        <DetailCard label="Skipped / flaky" value={`${surface.skipped ?? '—'} / ${surface.flaky ?? '—'}`} />
+        <DetailCard label="Total" value={surface.total ?? '—'} />
+        <DetailCard label="Duration" value={fmtDuration(surface.duration)} />
+        <DetailCard label="Timestamp" value={fmtDate(surface.ts)} />
+        <DetailCard label="Commit" value={surface.sha ?? '—'} />
+        <DetailCard label="Run" value={surface.runUrl ? 'Open run' : '—'} href={surface.runUrl} />
+        <DetailCard label="Last good" value={surface.lastGoodReportUrl ? 'Open last known good' : '—'} href={surface.lastGoodReportUrl} />
+      </section>
+
+      {surface.state === 'planned' && <div className="provisioned"><h3>Surface planned</h3><p>This slot is registered. The project repo should independently publish JSON files, then optionally link a raw HTML report.</p><pre>{surface.href}</pre></div>}
+      {surface.state === 'no-report' && <div className="provisioned"><h3>No machine-readable report yet</h3><p>{surface.error || 'Publish status.json, summary.json/runs.json, or a legacy results.csv to light up this panel.'}</p><pre>{Object.values(surface.dataUrls || {}).filter(Boolean).join('\n') || surface.href}</pre></div>}
+
+      {rows.length > 0 && <section className="trend-table-wrap"><div className="table-title"><Clock3 size={15}/> Recent trend rows</div><table className="trend-table"><thead><tr><th>Timestamp</th><th>Total</th><th>Passed</th><th>Failed</th><th>Duration</th><th>SHA</th></tr></thead><tbody>{rows.map((row, i) => <tr key={i}><td>{row.timestamp || row.ts || '—'}</td><td>{row.total || row.tests || '—'}</td><td>{row.passed || '—'}</td><td>{row.failed || '—'}</td><td>{fmtDuration(row.duration || row.durationMs)}</td><td>{row.sha || row.commit || '—'}</td></tr>)}</tbody></table></section>}
     </div>
   </>;
 }
