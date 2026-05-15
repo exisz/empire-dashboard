@@ -1,11 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Activity, AlertTriangle, Boxes, CircleDot, Clock3, ExternalLink, Gauge, GitBranch, LayoutDashboard, RadioTower, Search, ShieldCheck, Workflow, Zap } from 'lucide-react';
+import { Activity, Boxes, Clock3, ExternalLink, Gauge, LayoutDashboard, RadioTower, Search, ShieldCheck, Zap } from 'lucide-react';
 import clsx from 'clsx';
 import './styles.css';
 
 const registryUrl = `${import.meta.env.BASE_URL}modules/e2e/projects.json`;
-const STATES = ['passed', 'failed', 'blocked', 'no-report', 'stale', 'planned'];
 
 function trendRows(text) {
   const trimmed = text.trim();
@@ -28,13 +27,16 @@ async function optionalText(url) { if (!url) return null; try { return await fet
 function asNumber(value) { const n = Number(value); return Number.isFinite(n) ? n : undefined; }
 function inferSibling(url, file) { return url?.replace(/[^/]+$/, file); }
 function appendPath(url, path) { return url ? `${url.replace(/\/?$/, '/')}${path}` : undefined; }
-function normalizeState(value, failed = 0) {
+function normalizeState(value, failed = 0, flaky = 0) {
   const s = String(value || '').toLowerCase();
-  if (['passed', 'failed', 'blocked', 'no-report', 'stale', 'planned'].includes(s)) return s;
-  if (['pass', 'success', 'ok', 'green'].includes(s)) return 'passed';
+  if (['passed', 'failed', 'flaky', 'blocked', 'no-report', 'stale', 'planned'].includes(s)) return s;
   if (['fail', 'failure', 'red'].includes(s)) return 'failed';
+  if (['flake', 'flakes', 'yellow'].includes(s)) return 'flaky';
   if (['empty', 'missing', 'unknown', 'none'].includes(s)) return 'no-report';
-  return Number(failed) > 0 ? 'failed' : 'passed';
+  if (Number(failed) > 0) return 'failed';
+  if (Number(flaky) > 0) return 'flaky';
+  if (['pass', 'success', 'ok', 'green'].includes(s)) return 'passed';
+  return 'passed';
 }
 function latestRun(runs) {
   const list = Array.isArray(runs) ? runs : Array.isArray(runs?.runs) ? runs.runs : [];
@@ -78,12 +80,12 @@ function pickStatus(status, summary, run, row, surface, playwright) {
   const failed = asNumber(pwStats.unexpected ?? source.failed ?? source.unexpected ?? source.failures) ?? 0;
   const passed = asNumber(pwStats.expected ?? source.passed ?? source.expected ?? source.successes) ?? undefined;
   const skipped = asNumber(pwStats.skipped ?? source.skipped ?? source.pending) ?? undefined;
-  const flaky = asNumber(pwStats.flaky ?? source.flaky ?? source.flakes) ?? undefined;
+  const flaky = asNumber(pwStats.flaky ?? source.flaky ?? source.flakes) ?? 0;
   const countedTotal = [passed, failed, skipped, flaky].filter(v => v !== undefined).reduce((a, b) => a + b, 0);
   const total = asNumber(source.total ?? source.tests) ?? (countedTotal || undefined);
   return {
     ...surface,
-    state: normalizeState(source.status ?? source.state, failed),
+    state: normalizeState(source.status ?? source.state, failed, flaky),
     status,
     summary,
     playwright,
@@ -131,23 +133,20 @@ async function hydrateSurface(surface) {
   return hydrated;
 }
 const keyOf = (p, s) => `${p.id}/${s.id}`;
-const stateLabel = (s) => ({ passed: 'Passed', failed: 'Failed', blocked: 'Blocked', 'no-report': 'No report', stale: 'Stale', planned: 'Planned' }[s] || 'No report');
+const stateLabel = (s) => ({ passed: 'Passed', failed: 'Failed', flaky: 'Flaky', blocked: 'Blocked', 'no-report': 'No report', stale: 'Stale', planned: 'Planned' }[s] || 'No report');
 const fmtDuration = (ms) => { const n = Number(ms || 0); if (!n) return '—'; return n >= 10000 ? `${Math.round(n / 1000)}s` : `${Math.round(n)}ms`; };
 const fmtDate = (ts) => ts ? new Date(ts).toLocaleString() : 'not published yet';
 function projectState(project) {
   const states = project.surfaces.map(s => s.state);
-  return project.planned ? 'planned' : states.includes('failed') ? 'failed' : states.includes('blocked') ? 'blocked' : states.includes('stale') ? 'stale' : states.includes('passed') ? 'passed' : states.every(s => s === 'planned') ? 'planned' : 'no-report';
+  return project.planned ? 'planned' : states.includes('failed') ? 'failed' : states.includes('flaky') ? 'flaky' : states.includes('blocked') ? 'blocked' : states.includes('stale') ? 'stale' : states.includes('passed') ? 'passed' : states.every(s => s === 'planned') ? 'planned' : 'no-report';
 }
 function StatusPill({ state }) {
   return <span className={clsx('status-pill', state)}><span className="status-dot" />{stateLabel(state)}</span>;
 }
-function MetricCard({ icon: Icon, label, value, tone }) {
-  return <div className={clsx('metric-card', tone)}><Icon size={17} /><div><span>{label}</span><strong>{value}</strong></div></div>;
-}
 function SurfaceButton({ surface, active, onClick }) {
   return <button className={clsx('surface-button', active && 'active')} onClick={onClick}>
     <div className="surface-main"><span>{surface.name}</span><StatusPill state={surface.state} /></div>
-    <div className="surface-meta"><span>P {surface.passed ?? '—'}</span><span>F {surface.failed ?? '—'}</span><span>{fmtDuration(surface.duration)}</span></div>
+    <div className="surface-meta"><span>{surface.passed ?? '—'} ok</span><span>{surface.failed ?? 0} fail</span><span>{surface.flaky ?? 0} flaky</span></div>
   </button>;
 }
 function App() {
@@ -187,6 +186,17 @@ function App() {
     setSelectedKey(key); history.replaceState(null, '', `#${key}`);
   }
 
+  function updateSurfaceStats(projectId, surfaceId, stats) {
+    setProjects(current => current.map(project => project.id !== projectId ? project : {
+      ...project,
+      surfaces: project.surfaces.map(surface => surface.id !== surfaceId ? surface : {
+        ...surface,
+        ...stats,
+        state: normalizeState(stats.state ?? surface.state, stats.failed ?? surface.failed, stats.flaky ?? surface.flaky)
+      })
+    }));
+  }
+
   return <main className="console-shell">
     <section className="main-plane">
       <header className="empire-topbar">
@@ -200,59 +210,92 @@ function App() {
         <div className="topbar-links"><a href="docs/e2e-publisher-contract.md">Contract</a><a href="docs/e2e-roadmap.md">Roadmap</a></div>
       </header>
       <header className="command-bar">
-        <div><div className="kicker"><Zap size={14}/> E2E Module</div><h1>Official Playwright report console</h1></div>
-        <div className="topbar-status"><div className="ops-card"><div className="ops-card-head"><Activity size={16}/><span>Fleet Signal</span></div><strong>{live.length ? `${live.length - failing}/${live.length}` : '—'}</strong><p>{surfaces.length || '—'} surfaces · {planned} planned · {noReport} no report</p></div><div className="search-box"><Search size={16}/><input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Search projects…" /></div></div>
+        <div><div className="kicker"><Zap size={14}/> E2E</div><h1>Report console</h1></div>
+        <div className="topbar-status"><div className="ops-card"><div className="ops-card-head"><Activity size={16}/><span>Fleet</span></div><strong>{live.length ? `${live.length - failing}/${live.length}` : '—'}</strong><p>{surfaces.length || '—'} surfaces · {testCount || 0} tests</p></div><div className="search-box"><Search size={16}/><input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Search…" /></div></div>
       </header>
-
-      <section className="metrics-grid">
-        <MetricCard icon={CircleDot} label="Data surfaces" value={live.length || '—'} />
-        <MetricCard icon={AlertTriangle} label="Failed" value={failing} tone={failing ? 'danger' : 'good'} />
-        <MetricCard icon={Workflow} label="Test flows" value={testCount || '—'} />
-        <MetricCard icon={GitBranch} label="Mode" value="Playwright JSON" />
-      </section>
 
       <section className="work-grid">
         <div className="project-list">
           {error && <div className="empty">Registry offline: {error}</div>}
           {visibleProjects.map(project => <article className="project-group" key={project.id}>
-            <div className="project-title"><div><h2>{project.name}</h2><span>{project.repo || 'external publisher'}</span></div><StatusPill state={projectState(project)} /></div>
+            <div className="project-title"><div><h2>{project.name}</h2><span>{project.surfaces.length} surface{project.surfaces.length === 1 ? '' : 's'} · {project.repo || 'external'}</span></div><StatusPill state={projectState(project)} /></div>
             <div className="surface-list">{project.surfaces.map(surface => <SurfaceButton key={surface.id} surface={surface} active={selectedKey === keyOf(project, surface)} onClick={() => select(project, surface)} />)}</div>
           </article>)}
         </div>
 
         <div className="report-panel">
-          {selected ? <ReportView project={selected.project} surface={selected.surface} /> : <div className="empty big">Select a surface</div>}
+          {selected ? <ReportView project={selected.project} surface={selected.surface} onReportStats={updateSurfaceStats} /> : <div className="empty big">Select a surface</div>}
         </div>
       </section>
     </section>
   </main>;
 }
 
-function tuneReportFrame(event) {
-  const frame = event.currentTarget;
-  try {
-    const doc = frame.contentDocument;
-    if (!doc) return;
-    doc.documentElement.style.colorScheme = 'light';
-    doc.body?.style.setProperty('background', '#ffffff', 'important');
-    const style = doc.createElement('style');
-    style.dataset.empireDashboardPatch = 'playwright-light-frame';
-    style.textContent = `
-      :root, html, body { color-scheme: light !important; background: #fff !important; }
-      body, #root, .htmlreport, .htmlreport * { forced-color-adjust: none; }
-      body { color: #111827 !important; }
-      @media (prefers-color-scheme: dark) {
-        :root, html, body { background: #fff !important; color: #111827 !important; }
+function injectReportTheme(html, reportUrl) {
+  const baseHref = reportUrl.replace(/[^/]*$/, '');
+  const prelude = `<base href="${baseHref}"><script>try{localStorage.setItem('theme','dark-mode');document.documentElement.classList.add('dark-mode');document.documentElement.style.colorScheme='dark'}catch(e){}</script>`;
+  return html.replace(/<head([^>]*)>/i, `<head$1>${prelude}`);
+}
+
+function readReportStats(doc) {
+  const text = doc?.body?.innerText || '';
+  const pick = (label) => {
+    const match = text.match(new RegExp(`${label}\\s*(\\d+)`, 'i'));
+    return match ? Number(match[1]) : undefined;
+  };
+  const total = pick('All');
+  const passed = pick('Passed');
+  const failed = pick('Failed');
+  const flaky = pick('Flaky');
+  const skipped = pick('Skipped');
+  if ([total, passed, failed, flaky, skipped].every(v => v === undefined)) return null;
+  return { total, passed, failed: failed ?? 0, flaky: flaky ?? 0, skipped: skipped ?? 0 };
+}
+
+function ReportFrame({ reportUrl, title, onStats }) {
+  const [srcDoc, setSrcDoc] = useState('');
+  const [src, setSrc] = useState(reportUrl);
+
+  useEffect(() => {
+    let cancelled = false;
+    setSrcDoc('');
+    setSrc(reportUrl);
+    fetch(reportUrl, { cache: 'no-store' })
+      .then(r => r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))
+      .then(html => { if (!cancelled) { setSrc('about:blank'); setSrcDoc(injectReportTheme(html, reportUrl)); } })
+      .catch(() => { if (!cancelled) setSrc(reportUrl); });
+    return () => { cancelled = true; };
+  }, [reportUrl]);
+
+  function handleLoad(event) {
+    const frame = event.currentTarget;
+    frame.dataset.loaded = 'true';
+    let attempts = 0;
+    const scan = () => {
+      attempts += 1;
+      try {
+        const doc = frame.contentDocument;
+        doc?.defaultView?.localStorage?.setItem('theme', 'dark-mode');
+        doc?.documentElement?.classList?.remove('light-mode');
+        doc?.documentElement?.classList?.add('dark-mode');
+        doc?.documentElement?.style?.setProperty('color-scheme', 'dark');
+        const stats = readReportStats(doc);
+        if (stats) onStats?.(stats);
+        if (!stats && attempts < 12) setTimeout(scan, 250);
+      } catch {
+        // Cross-origin fallback: CSS still frames it dark, but native contents are not scriptable.
       }
-    `;
-    if (!doc.head.querySelector('[data-empire-dashboard-patch="playwright-light-frame"]')) doc.head.appendChild(style);
-  } catch {}
+    };
+    scan();
+  }
+
+  return <iframe className="playwright-report-frame" title={title} src={src} srcDoc={srcDoc || undefined} onLoad={handleLoad} />;
 }
 
 function DetailCard({ label, value, href }) {
   return <div className="detail-card"><span>{label}</span>{href && value !== '—' ? <a href={href} target="_blank" rel="noreferrer">{value}<ExternalLink size={13}/></a> : <strong>{value ?? '—'}</strong>}</div>;
 }
-function ReportView({ project, surface }) {
+function ReportView({ project, surface, onReportStats }) {
   const rawReportUrl = surface.reportUrl || surface.href;
   const rows = surface.trendRows || [];
   const tests = surface.tests || [];
@@ -276,7 +319,7 @@ function ReportView({ project, surface }) {
         {rows.length > 0 && <div className="mini-trends"><div className="table-title"><Clock3 size={14}/> Recent runs</div>{rows.slice(-4).map((row, i) => <div className="mini-row" key={i}><span>{row.timestamp || row.ts || '—'}</span><strong>{row.failed || 0} failed</strong></div>)}</div>}
       </aside>
       <section className="official-report-panel">
-        {hasOfficialReport ? <iframe title={`${project.name} ${surface.name} Playwright report`} src={rawReportUrl} onLoad={tuneReportFrame} /> : <div className="provisioned"><h3>Official Playwright report not published yet</h3><p>This surface is registered. Publish the Playwright HTML report and JSON output from the project repo.</p><pre>{surface.href}</pre></div>}
+        {hasOfficialReport ? <ReportFrame title={`${project.name} ${surface.name} Playwright report`} reportUrl={rawReportUrl} onStats={stats => onReportStats?.(project.id, surface.id, stats)} /> : <div className="provisioned"><h3>Official Playwright report not published yet</h3><p>This surface is registered. Publish the Playwright HTML report and JSON output from the project repo.</p><pre>{surface.href}</pre></div>}
       </section>
     </div>
   </>;
