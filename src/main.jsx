@@ -323,50 +323,26 @@ function readReportStats(doc) {
   return { total, passed, failed: failed ?? 0, flaky: flaky ?? 0, skipped: skipped ?? 0 };
 }
 
-function ReportBundleView({ reportUrl, onStats }) {
-  const [bundle, setBundle] = useState(null);
-  const [error, setError] = useState('');
-
+function PlaywrightReportFrame({ reportUrl, title, onStats }) {
   useEffect(() => {
     let cancelled = false;
-    setBundle(null);
-    setError('');
     fetch(reportUrl, { cache: 'no-store' })
       .then(r => r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))
       .then(html => readReportBundleFromHtml(html))
-      .then(next => {
-        if (cancelled) return;
-        if (!next) throw new Error('No embedded Playwright report bundle found');
-        setBundle(next);
-        if (next.stats) onStats?.({ ...next.stats, tests: next.tests, ts: next.startTime, duration: next.duration ?? next.stats.duration });
+      .then(bundle => {
+        if (cancelled || !bundle?.stats) return;
+        onStats?.({ ...bundle.stats, tests: bundle.tests, ts: bundle.startTime, duration: bundle.duration ?? bundle.stats.duration });
       })
-      .catch(error => { if (!cancelled) setError(error.message || String(error)); });
+      .catch(() => {});
     return () => { cancelled = true; };
   }, [reportUrl]);
 
-  if (error) return <div className="report-native-view empty">Report bundle unavailable: {error}</div>;
-  if (!bundle) return <div className="report-native-view empty">Loading Playwright report…</div>;
+  function handleLoad(event) {
+    event.currentTarget.dataset.loaded = 'true';
+  }
 
-  const tests = bundle.tests || [];
-  const ordered = [...tests].sort((a, b) => {
-    const rank = { failed: 0, flaky: 1, skipped: 2, passed: 3 };
-    return (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || (b.duration || 0) - (a.duration || 0);
-  });
-  return <div className="report-native-view">
-    <div className="native-summary">
-      <span><strong>{bundle.stats?.passed ?? 0}</strong> passed</span>
-      <span><strong>{bundle.stats?.failed ?? 0}</strong> failed</span>
-      <span><strong>{bundle.stats?.flaky ?? 0}</strong> flaky</span>
-      <span><strong>{bundle.stats?.skipped ?? 0}</strong> skipped</span>
-    </div>
-    <div className="native-test-list">
-      {ordered.map(test => <div className={clsx('native-test-row', test.status)} key={test.id}>
-        <span className="native-status">{test.status}</span>
-        <div className="native-test-main"><strong>{test.title}</strong><span>{test.journey || test.file}{test.line ? ` · ${test.file}:${test.line}` : ''}</span></div>
-        <span className="native-duration">{fmtDuration(test.duration)}</span>
-      </div>)}
-    </div>
-  </div>;
+  const frameUrl = `${import.meta.env.BASE_URL}report-proxy.html?report=${encodeURIComponent(reportUrl)}`;
+  return <iframe className="playwright-report-frame" title={title} src={frameUrl} onLoad={handleLoad} />;
 }
 
 function DetailCard({ label, value, href }) {
@@ -396,7 +372,7 @@ function ReportView({ project, surface, onReportStats }) {
         {rows.length > 0 && <div className="mini-trends"><div className="table-title"><Clock3 size={14}/> Recent runs</div>{rows.slice(-4).map((row, i) => <div className="mini-row" key={i}><span>{row.timestamp || row.ts || '—'}</span><strong>{row.failed || 0} failed</strong></div>)}</div>}
       </aside>
       <section className="official-report-panel">
-        {hasOfficialReport ? <ReportBundleView reportUrl={rawReportUrl} onStats={stats => onReportStats?.(project.id, surface.id, stats)} /> : <div className="provisioned"><h3>Official Playwright report not published yet</h3><p>This surface is registered. Publish the Playwright HTML report and JSON output from the project repo.</p><pre>{surface.href}</pre></div>}
+        {hasOfficialReport ? <PlaywrightReportFrame title={`${project.name} ${surface.name} Playwright report`} reportUrl={rawReportUrl} onStats={stats => onReportStats?.(project.id, surface.id, stats)} /> : <div className="provisioned"><h3>Official Playwright report not published yet</h3><p>This surface is registered. Publish the Playwright HTML report and JSON output from the project repo.</p><pre>{surface.href}</pre></div>}
       </section>
     </div>
   </>;
