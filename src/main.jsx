@@ -29,13 +29,11 @@ function inferSibling(url, file) { return url?.replace(/[^/]+$/, file); }
 function appendPath(url, path) { return url ? `${url.replace(/\/?$/, '/')}${path}` : undefined; }
 function normalizeState(value, failed = 0, flaky = 0) {
   const s = String(value || '').toLowerCase();
-  if (['passed', 'failed', 'flaky', 'blocked', 'no-report', 'stale', 'planned'].includes(s)) return s;
-  if (['fail', 'failure', 'red'].includes(s)) return 'failed';
-  if (['flake', 'flakes', 'yellow'].includes(s)) return 'flaky';
+  if (['failed', 'fail', 'failure', 'red'].includes(s) || Number(failed) > 0) return 'failed';
+  if (['flaky', 'flake', 'flakes', 'yellow'].includes(s) || Number(flaky) > 0) return 'flaky';
+  if (['blocked', 'no-report', 'stale', 'planned'].includes(s)) return s;
   if (['empty', 'missing', 'unknown', 'none'].includes(s)) return 'no-report';
-  if (Number(failed) > 0) return 'failed';
-  if (Number(flaky) > 0) return 'flaky';
-  if (['pass', 'success', 'ok', 'green'].includes(s)) return 'passed';
+  if (['passed', 'pass', 'success', 'ok', 'green'].includes(s)) return 'passed';
   return 'passed';
 }
 function latestRun(runs) {
@@ -331,7 +329,8 @@ function ReportFrame({ reportUrl, title, onStats }) {
     }
   }
 
-  return <iframe className="playwright-report-frame" title={title} src={reportUrl} onLoad={handleLoad} />;
+  const frameUrl = `${import.meta.env.BASE_URL}report-frame.html?report=${encodeURIComponent(reportUrl)}`;
+  return <iframe className="playwright-report-frame" title={title} src={frameUrl} onLoad={handleLoad} />;
 }
 
 function DetailCard({ label, value, href }) {
