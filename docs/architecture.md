@@ -1,15 +1,15 @@
-# Empire Dashboard architecture
+# Fleetdeck architecture
 
 ## Current direction
 
-Empire Dashboard is a static reader SPA. It does **not** run project tests, own project secrets, or get triggered by project repositories.
+Fleetdeck is a static reader SPA. It does **not** run project tests, own project secrets, or get triggered by project repositories.
 
-Each project repository independently runs its E2E workflow on the runner it chooses, publishes sanitized machine-readable JSON/CSV at stable URLs, and optionally publishes a raw Playwright/custom HTML report. Empire Dashboard fetches those files at runtime and renders the operational view itself.
+Each project repository independently runs its E2E workflow on the runner it chooses, publishes sanitized machine-readable JSON/CSV at stable URLs, and optionally publishes a raw Playwright/custom HTML report. Fleetdeck fetches those files at runtime and renders the operational view itself.
 
 The UX must feel like one system:
 
 ```text
-Empire Dashboard static SPA
+Fleetdeck static SPA
 └── E2E Module
     ├── Tally / Cloud
     ├── Tally / Desktop macOS
@@ -29,7 +29,7 @@ Primary UX is JSON-data-driven cards and tables, including the official Playwrig
 
 ## Current non-goals
 
-- No `repository_dispatch` path from project repos into Empire Dashboard.
+- No `repository_dispatch` path from project repos into Fleetdeck.
 - No Empire-trigger-on-project-run workflow.
 - No dashboard-owned cross-repo write token for project E2E output.
 - No project secrets inside this dashboard repo.
