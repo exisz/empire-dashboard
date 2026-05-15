@@ -13,15 +13,43 @@ function darkPrelude(reportUrl) {
     <base href="${escapeHtml(baseHref)}">
     <meta name="color-scheme" content="dark">
     <script>
-      try {
-        localStorage.setItem('theme', 'dark-mode');
-        document.documentElement.classList.remove('light-mode');
-        document.documentElement.classList.add('dark-mode');
-        document.documentElement.style.colorScheme = 'dark';
-      } catch (e) {}
+      (() => {
+        const DARK = 'dark-mode';
+        const LIGHT = 'light-mode';
+        const applyDark = () => {
+          try { localStorage.setItem('theme', DARK); } catch (e) {}
+          document.documentElement.classList.remove(LIGHT);
+          document.documentElement.classList.add(DARK);
+          document.documentElement.style.colorScheme = 'dark';
+          document.documentElement.dataset.empireTheme = 'dark';
+          if (document.body) {
+            document.body.style.setProperty('background', '#09090b', 'important');
+          }
+        };
+        applyDark();
+        const originalSetItem = Storage.prototype.setItem;
+        Storage.prototype.setItem = function(key, value) {
+          if (key === 'theme') value = DARK;
+          return originalSetItem.call(this, key, value);
+        };
+        const originalAdd = DOMTokenList.prototype.add;
+        const originalRemove = DOMTokenList.prototype.remove;
+        DOMTokenList.prototype.add = function(...tokens) {
+          return originalAdd.apply(this, tokens.map(token => token === LIGHT ? DARK : token));
+        };
+        DOMTokenList.prototype.remove = function(...tokens) {
+          return originalRemove.apply(this, tokens.filter(token => token !== DARK));
+        };
+        new MutationObserver(applyDark).observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+        window.addEventListener('hashchange', () => setTimeout(applyDark, 0), true);
+        window.addEventListener('popstate', () => setTimeout(applyDark, 0), true);
+        document.addEventListener('click', () => setTimeout(applyDark, 0), true);
+        setInterval(applyDark, 500);
+      })();
     <\/script>
     <style>
-      html, body { background: #09090b !important; color-scheme: dark !important; }
+      html, html.light-mode, html.dark-mode, body { background: #09090b !important; color-scheme: dark !important; }
+      html.light-mode { filter: invert(1) hue-rotate(180deg) saturate(.92) contrast(.96); }
     </style>`;
 }
 
