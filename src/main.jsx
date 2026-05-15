@@ -241,6 +241,22 @@ function parseReportStats(json) {
     duration: stats.duration
   };
 }
+function flattenReportTests(json) {
+  return (json?.files || []).flatMap(file => (file.tests || []).map(test => ({
+    id: test.testId || `${file.fileName}:${test.line || ''}:${test.title}`,
+    title: test.title,
+    journey: (test.path || []).join(' › '),
+    file: file.fileName,
+    line: test.location?.line || test.line,
+    projectName: test.projectName,
+    status: test.outcome === 'unexpected' ? 'failed' : test.outcome === 'expected' ? 'passed' : test.outcome || 'unknown',
+    duration: test.duration
+  })));
+}
+function parseReportBundle(json) {
+  if (!json) return null;
+  return { stats: parseReportStats(json), tests: flattenReportTests(json), startTime: json.startTime, duration: json.duration };
+}
 
 const zipTextDecoder = new TextDecoder();
 const u16 = (bytes, offset) => bytes[offset] | (bytes[offset + 1] << 8);
@@ -286,11 +302,11 @@ async function readZipTextEntry(zipBytes, entryName) {
   }
   return null;
 }
-async function readReportStatsFromHtml(html) {
+async function readReportBundleFromHtml(html) {
   const match = html.match(/id=["']playwrightReportBase64["'][^>]*>data:application\/zip;base64,([^<]+)/);
   if (!match) return null;
   const reportText = await readZipTextEntry(base64Bytes(match[1].trim()), 'report.json');
-  return reportText ? parseReportStats(JSON.parse(reportText)) : null;
+  return reportText ? parseReportBundle(JSON.parse(reportText)) : null;
 }
 function readReportStats(doc) {
   const text = doc?.body?.innerText || '';
@@ -307,30 +323,50 @@ function readReportStats(doc) {
   return { total, passed, failed: failed ?? 0, flaky: flaky ?? 0, skipped: skipped ?? 0 };
 }
 
-function ReportFrame({ reportUrl, title, onStats }) {
+function ReportBundleView({ reportUrl, onStats }) {
+  const [bundle, setBundle] = useState(null);
+  const [error, setError] = useState('');
+
   useEffect(() => {
     let cancelled = false;
+    setBundle(null);
+    setError('');
     fetch(reportUrl, { cache: 'no-store' })
       .then(r => r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then(html => readReportStatsFromHtml(html))
-      .then(stats => { if (!cancelled && stats) onStats?.(stats); })
-      .catch(() => {});
+      .then(html => readReportBundleFromHtml(html))
+      .then(next => {
+        if (cancelled) return;
+        if (!next) throw new Error('No embedded Playwright report bundle found');
+        setBundle(next);
+        if (next.stats) onStats?.({ ...next.stats, tests: next.tests, ts: next.startTime, duration: next.duration ?? next.stats.duration });
+      })
+      .catch(error => { if (!cancelled) setError(error.message || String(error)); });
     return () => { cancelled = true; };
   }, [reportUrl]);
 
-  function handleLoad(event) {
-    const frame = event.currentTarget;
-    frame.dataset.loaded = 'true';
-    try {
-      const stats = readReportStats(frame.contentDocument);
-      if (stats) onStats?.(stats);
-    } catch {
-      // Cross-origin official reports are intentionally left native; stats come from fetched HTML.
-    }
-  }
+  if (error) return <div className="report-native-view empty">Report bundle unavailable: {error}</div>;
+  if (!bundle) return <div className="report-native-view empty">Loading Playwright report…</div>;
 
-  const frameUrl = `${import.meta.env.BASE_URL}report-frame.html?report=${encodeURIComponent(reportUrl)}`;
-  return <iframe className="playwright-report-frame" title={title} src={frameUrl} onLoad={handleLoad} />;
+  const tests = bundle.tests || [];
+  const ordered = [...tests].sort((a, b) => {
+    const rank = { failed: 0, flaky: 1, skipped: 2, passed: 3 };
+    return (rank[a.status] ?? 9) - (rank[b.status] ?? 9) || (b.duration || 0) - (a.duration || 0);
+  });
+  return <div className="report-native-view">
+    <div className="native-summary">
+      <span><strong>{bundle.stats?.passed ?? 0}</strong> passed</span>
+      <span><strong>{bundle.stats?.failed ?? 0}</strong> failed</span>
+      <span><strong>{bundle.stats?.flaky ?? 0}</strong> flaky</span>
+      <span><strong>{bundle.stats?.skipped ?? 0}</strong> skipped</span>
+    </div>
+    <div className="native-test-list">
+      {ordered.map(test => <div className={clsx('native-test-row', test.status)} key={test.id}>
+        <span className="native-status">{test.status}</span>
+        <div className="native-test-main"><strong>{test.title}</strong><span>{test.journey || test.file}{test.line ? ` · ${test.file}:${test.line}` : ''}</span></div>
+        <span className="native-duration">{fmtDuration(test.duration)}</span>
+      </div>)}
+    </div>
+  </div>;
 }
 
 function DetailCard({ label, value, href }) {
@@ -360,7 +396,7 @@ function ReportView({ project, surface, onReportStats }) {
         {rows.length > 0 && <div className="mini-trends"><div className="table-title"><Clock3 size={14}/> Recent runs</div>{rows.slice(-4).map((row, i) => <div className="mini-row" key={i}><span>{row.timestamp || row.ts || '—'}</span><strong>{row.failed || 0} failed</strong></div>)}</div>}
       </aside>
       <section className="official-report-panel">
-        {hasOfficialReport ? <ReportFrame title={`${project.name} ${surface.name} Playwright report`} reportUrl={rawReportUrl} onStats={stats => onReportStats?.(project.id, surface.id, stats)} /> : <div className="provisioned"><h3>Official Playwright report not published yet</h3><p>This surface is registered. Publish the Playwright HTML report and JSON output from the project repo.</p><pre>{surface.href}</pre></div>}
+        {hasOfficialReport ? <ReportBundleView reportUrl={rawReportUrl} onStats={stats => onReportStats?.(project.id, surface.id, stats)} /> : <div className="provisioned"><h3>Official Playwright report not published yet</h3><p>This surface is registered. Publish the Playwright HTML report and JSON output from the project repo.</p><pre>{surface.href}</pre></div>}
       </section>
     </div>
   </>;
