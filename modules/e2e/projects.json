@@ -1,6 +1,6 @@
 {
   "schema": "https://exisz.github.io/empire-dashboard/modules/e2e/projects.schema.json",
-  "updatedAt": "2026-05-15T05:25:10.954Z",
+  "updatedAt": "2026-05-15T08:30:00.000Z",
   "projects": [
     {
       "id": "lifeforge",
@@ -12,22 +12,15 @@
       "surfaces": [
         {
           "id": "lifeos",
-          "name": "LifeOS Activity",
+          "name": "LifeOS",
           "href": "https://exisz.github.io/lifeforge/e2e/lifeos/",
           "statusUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/status.json",
           "summaryUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/summary.json",
           "runsUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/runs.json",
           "historyUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/history.csv",
           "resultsUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/results.csv",
-          "reportUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/"
-        },
-        {
-          "id": "tally-additional-data-pipe",
-          "name": "Tally additional data pipe",
-          "href": "https://exisz.github.io/tally/additional-data-pipe/",
-          "statusUrl": "https://exisz.github.io/tally/additional-data-pipe/status.json",
-          "resultsUrl": "https://exisz.github.io/tally/additional-data-pipe/results.csv",
-          "reportUrl": "https://exisz.github.io/tally/additional-data-pipe/"
+          "reportUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/",
+          "playwrightJsonUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/test-results/results.json"
         }
       ]
     },
