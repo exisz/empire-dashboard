@@ -1,35 +1,33 @@
 {
   "schema": "https://exisz.github.io/empire-dashboard/modules/e2e/projects.schema.json",
-  "updatedAt": "2026-05-13T12:10:00Z",
+  "updatedAt": "2026-05-15T05:25:10.954Z",
   "projects": [
     {
-      "id": "tally",
-      "name": "Tally",
+      "id": "lifeforge",
+      "name": "LifeForge / LifeOS",
       "kind": "product",
-      "repo": "exisz/tally",
-      "href": "https://exisz.github.io/tally/",
-      "actionsHref": "https://github.com/exisz/tally/actions",
+      "repo": "exisz/lifeforge",
+      "href": "https://exisz.github.io/lifeforge/e2e/lifeos/",
+      "actionsHref": "https://github.com/exisz/lifeforge/actions/workflows/lifeos-e2e-dashboard.yml",
       "surfaces": [
         {
-          "id": "cloud",
-          "name": "Cloud",
-          "href": "https://exisz.github.io/tally/cloud/",
-          "statusUrl": "https://exisz.github.io/tally/cloud/status.json",
-          "resultsUrl": "https://exisz.github.io/tally/cloud/results.csv"
+          "id": "lifeos",
+          "name": "LifeOS Activity",
+          "href": "https://exisz.github.io/lifeforge/e2e/lifeos/",
+          "statusUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/status.json",
+          "summaryUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/summary.json",
+          "runsUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/runs.json",
+          "historyUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/history.csv",
+          "resultsUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/results.csv",
+          "reportUrl": "https://exisz.github.io/lifeforge/e2e/lifeos/"
         },
         {
-          "id": "desktop-mac",
-          "name": "Desktop macOS",
-          "href": "https://exisz.github.io/tally/desktop/mac/",
-          "statusUrl": "https://exisz.github.io/tally/desktop/mac/status.json",
-          "resultsUrl": "https://exisz.github.io/tally/desktop/mac/results.csv"
-        },
-        {
-          "id": "desktop-linux",
-          "name": "Desktop Linux",
-          "href": "https://exisz.github.io/tally/desktop/linux/",
-          "statusUrl": "https://exisz.github.io/tally/desktop/linux/status.json",
-          "resultsUrl": "https://exisz.github.io/tally/desktop/linux/results.csv"
+          "id": "tally-additional-data-pipe",
+          "name": "Tally additional data pipe",
+          "href": "https://exisz.github.io/tally/additional-data-pipe/",
+          "statusUrl": "https://exisz.github.io/tally/additional-data-pipe/status.json",
+          "resultsUrl": "https://exisz.github.io/tally/additional-data-pipe/results.csv",
+          "reportUrl": "https://exisz.github.io/tally/additional-data-pipe/"
         }
       ]
     },
