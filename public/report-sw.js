@@ -14,42 +14,20 @@ function darkPrelude(reportUrl) {
     <meta name="color-scheme" content="dark">
     <script>
       (() => {
-        const DARK = 'dark-mode';
-        const LIGHT = 'light-mode';
         const applyDark = () => {
-          try { localStorage.setItem('theme', DARK); } catch (e) {}
-          document.documentElement.classList.remove(LIGHT);
-          document.documentElement.classList.add(DARK);
-          document.documentElement.style.colorScheme = 'dark';
-          document.documentElement.dataset.empireTheme = 'dark';
-          if (document.body) {
-            document.body.style.setProperty('background', '#09090b', 'important');
-          }
+          try { localStorage.setItem('theme', 'dark-mode'); } catch (e) {}
+          const root = document.documentElement;
+          if (root.classList.contains('light-mode')) root.classList.remove('light-mode');
+          if (!root.classList.contains('dark-mode')) root.classList.add('dark-mode');
+          if (root.style.colorScheme !== 'dark') root.style.colorScheme = 'dark';
         };
         applyDark();
-        const originalSetItem = Storage.prototype.setItem;
-        Storage.prototype.setItem = function(key, value) {
-          if (key === 'theme') value = DARK;
-          return originalSetItem.call(this, key, value);
-        };
-        const originalAdd = DOMTokenList.prototype.add;
-        const originalRemove = DOMTokenList.prototype.remove;
-        DOMTokenList.prototype.add = function(...tokens) {
-          return originalAdd.apply(this, tokens.map(token => token === LIGHT ? DARK : token));
-        };
-        DOMTokenList.prototype.remove = function(...tokens) {
-          return originalRemove.apply(this, tokens.filter(token => token !== DARK));
-        };
-        new MutationObserver(applyDark).observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
-        window.addEventListener('hashchange', () => setTimeout(applyDark, 0), true);
-        window.addEventListener('popstate', () => setTimeout(applyDark, 0), true);
-        document.addEventListener('click', () => setTimeout(applyDark, 0), true);
-        setInterval(applyDark, 500);
+        window.addEventListener('hashchange', () => requestAnimationFrame(applyDark), { passive: true });
+        window.addEventListener('popstate', () => requestAnimationFrame(applyDark), { passive: true });
       })();
     <\/script>
     <style>
-      html, html.light-mode, html.dark-mode, body { background: #09090b !important; color-scheme: dark !important; }
-      html.light-mode { filter: invert(1) hue-rotate(180deg) saturate(.92) contrast(.96); }
+      html, body { background: #09090b !important; color-scheme: dark !important; }
     </style>`;
 }
 
