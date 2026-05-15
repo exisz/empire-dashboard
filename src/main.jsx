@@ -64,7 +64,7 @@ function App() {
   return <main className="console-shell">
     <section className="main-plane">
       <header className="empire-topbar">
-        <div className="brand-row"><div className="brand-mark"><Boxes size={20} /></div><div><span>Empire</span><strong>Operations</strong></div></div>
+        <div className="brand-row"><div className="brand-mark"><Boxes size={20} /></div><div><span>Fleetdeck</span><strong>E2E Operations</strong></div></div>
         <nav className="module-stack">
           <button className="active"><LayoutDashboard size={16}/> E2E Module</button>
           <button disabled><RadioTower size={16}/> Deploy Radar</button>
@@ -74,7 +74,7 @@ function App() {
         <div className="topbar-links"><a href="docs/e2e-publisher-contract.md">Contract</a><a href="docs/e2e-roadmap.md">Roadmap</a></div>
       </header>
       <header className="command-bar">
-        <div><div className="kicker"><Zap size={14}/> E2E</div><h1>Report console</h1></div>
+        <div><div className="kicker"><Zap size={14}/> E2E</div><h1>Fleetdeck console</h1></div>
         <div className="topbar-status"><div className="ops-card"><div className="ops-card-head"><Activity size={16}/><span>Fleet</span></div><strong>{summary.live ? `${summary.healthy}/${summary.live}` : '—'}</strong><p>{summary.surfaces || '—'} surfaces · {summary.tests || 0} tests</p></div><div className="search-box"><Search size={16}/><input value={filter} onChange={e => setFilter(e.target.value)} placeholder="Search…" /></div></div>
       </header>
 

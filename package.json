@@ -1,5 +1,5 @@
 {
-  "name": "empire-dashboard",
+  "name": "fleetdeck",
   "version": "0.2.0",
   "private": true,
   "type": "module",
@@ -8,8 +8,8 @@
     "build": "vite build && node scripts/build.js",
     "check": "node scripts/validate-registry.js",
     "preview": "vite preview --host 0.0.0.0",
-    "e2e:status": "node src/cli/empire-e2e.js status",
-    "e2e:failures": "node src/cli/empire-e2e.js failures"
+    "e2e:status": "node src/cli/fleetdeck.js status",
+    "e2e:failures": "node src/cli/fleetdeck.js failures"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -22,7 +22,6 @@
   },
   "devDependencies": {},
   "bin": {
-    "empire-e2e": "./src/cli/empire-e2e.js",
-    "empire-dashboard": "./src/cli/empire-e2e.js"
+    "fleetdeck": "./src/cli/fleetdeck.js"
   }
 }

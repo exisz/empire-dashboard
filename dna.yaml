@@ -1,7 +1,7 @@
-# DNA — Empire Dashboard
+# DNA — Fleetdeck
 
 goal: >
-  Operate the Empire Dashboard at https://projects.rollersoft.com.au as a crucial
+  Operate the Fleetdeck at https://projects.rollersoft.com.au as a crucial
   empire middleware surface for E2E observability. It aggregates official
   Playwright reports and machine-readable status artifacts across empire products
   so regressions are visible from one operations console.
@@ -10,7 +10,7 @@ boundary:
   - Do not own the product-under-test code; surface failures and link to the owning repo/action.
   - Do not replace official Playwright HTML reports; embed them and preserve their native navigation.
   - Do not add product surfaces without registry entries that point to durable report/status artifacts.
-  - Do not make white/light embedded reports the default inside the dark Empire Operations shell.
+  - Do not make white/light embedded reports the default inside the dark Fleetdeck Operations shell.
 
 tools:
   - Vite + React dashboard in src/main.jsx and src/styles.css
@@ -26,7 +26,7 @@ philosophy:
 conventions:
   - id: embedded-report-theme-coherence
     rule: >
-      Embedded official reports must visually follow the Empire Dashboard shell.
+      Embedded official reports must visually follow the Fleetdeck shell.
       Prefer a srcdoc report proxy that fetches official Playwright HTML, injects a
       dark-mode prelude before Playwright boots, and preserves native Playwright
       navigation. Fall back to direct iframe only when the report cannot be fetched.

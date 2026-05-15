@@ -2,7 +2,7 @@
 
 ## Phase 0 — static reader shell (done)
 
-- Public Empire Dashboard shell on GitHub Pages
+- Public Fleetdeck shell on GitHub Pages
 - E2E registry with existing dashboards:
   - Tally
   - PeopleClaw

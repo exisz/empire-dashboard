@@ -9,7 +9,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '../..');
 
 function usage() {
-  console.log(`empire-e2e — Empire Dashboard E2E CLI\n\nUsage:\n  empire-e2e status [--json]\n  empire-e2e failures [--json]\n  empire-e2e inspect <project/surface> [--json]\n  empire-e2e list [--json]\n\nOptions:\n  --registry <path-or-url>  Registry source (default: modules/e2e/projects.json)\n  --ui-base <url>          Dashboard deep-link base (default: ${DEFAULT_UI_BASE})\n  --json                   Emit JSON\n`);
+  console.log(`fleetdeck — Playwright fleet report console\n\nUsage:\n  fleetdeck status [--json]\n  fleetdeck failures [--json]\n  fleetdeck inspect <project/surface> [--json]\n  fleetdeck list [--json]\n\nOptions:\n  --registry <path-or-url>  Registry source (default: modules/e2e/projects.json)\n  --ui-base <url>          Dashboard deep-link base (default: ${DEFAULT_UI_BASE})\n  --json                   Emit JSON\n`);
 }
 
 function parseArgs(argv) {
@@ -108,6 +108,6 @@ async function main() {
 }
 
 main().catch(error => {
-  console.error(`empire-e2e: ${error.message || error}`);
+  console.error(`fleetdeck: ${error.message || error}`);
   process.exit(1);
 });

@@ -1,8 +1,8 @@
-# Empire Dashboard → E2E Module publisher contract
+# Fleetdeck → E2E Module publisher contract
 
-Empire Dashboard is a static reader SPA. Project repositories own their E2E execution and publish sanitized data at stable URLs. The dashboard reads those JSON/CSV files at runtime and renders the primary UX itself.
+Fleetdeck is a static reader SPA. Project repositories own their E2E execution and publish sanitized data at stable URLs. The dashboard reads those JSON/CSV files at runtime and renders the primary UX itself.
 
-Raw Playwright/custom HTML reports are optional artifacts. They should be exposed as links that open in a new tab; they are not embedded as the primary operator view.
+Raw Playwright/custom HTML reports are first-class evidence artifacts. Fleetdeck embeds official Playwright HTML reports in the operator iframe and also exposes direct links for opening them in a new tab.
 
 ## Preferred project-published files
 
@@ -55,7 +55,7 @@ Minimum useful fields: `status`, `ts`, and either `runUrl` or `reportUrl`.
 
 ## Playwright official JSON
 
-Empire Dashboard should support the official Playwright JSON reporter shape. Preferred publisher command:
+Fleetdeck should support the official Playwright JSON reporter shape. Preferred publisher command:
 
 ```bash
 npx playwright test --reporter=html,json
@@ -143,6 +143,6 @@ Any latest/status/summary/run object may include. For user journeys / flows, pre
 
 Each project keeps its own test runner, secrets, schedule, and runner selection. Use GitHub Secrets/environment secrets for credentials, payment-provider keys, login users, and test card data.
 
-For now, do **not** wire project repos to trigger Empire Dashboard via `repository_dispatch`, and do **not** publish into this repo as the default path. Publish data to the project repo's own GitHub Pages or another stable static host, then register the URLs in `modules/e2e/projects.json`.
+For now, do **not** wire project repos to trigger Fleetdeck via `repository_dispatch`, and do **not** publish into this repo as the default path. Publish data to the project repo's own GitHub Pages or another stable static host, then register the URLs in `modules/e2e/projects.json`.
 
 A future Empire ingest workflow may mirror/validate project data, but it should be treated as optional infrastructure, not the current recommendation.

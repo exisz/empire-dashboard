@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Empire Dashboard E2E Registry",
+  "title": "Fleetdeck E2E Registry",
   "type": "object",
   "required": ["projects"],
   "properties": {
