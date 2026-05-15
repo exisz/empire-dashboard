@@ -253,18 +253,25 @@ function readReportStats(doc) {
 }
 
 function ReportFrame({ reportUrl, title, onStats }) {
-  const [srcDoc, setSrcDoc] = useState('');
   const [src, setSrc] = useState(reportUrl);
 
   useEffect(() => {
     let cancelled = false;
-    setSrcDoc('');
+    let blobUrl = '';
     setSrc(reportUrl);
     fetch(reportUrl, { cache: 'no-store' })
       .then(r => r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then(html => { if (!cancelled) { setSrc('about:blank'); setSrcDoc(injectReportTheme(html, reportUrl)); } })
+      .then(html => {
+        if (cancelled) return;
+        const blob = new Blob([injectReportTheme(html, reportUrl)], { type: 'text/html' });
+        blobUrl = URL.createObjectURL(blob);
+        setSrc(blobUrl);
+      })
       .catch(() => { if (!cancelled) setSrc(reportUrl); });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      if (blobUrl) URL.revokeObjectURL(blobUrl);
+    };
   }, [reportUrl]);
 
   function handleLoad(event) {
@@ -289,7 +296,7 @@ function ReportFrame({ reportUrl, title, onStats }) {
     scan();
   }
 
-  return <iframe className="playwright-report-frame" title={title} src={src} srcDoc={srcDoc || undefined} onLoad={handleLoad} />;
+  return <iframe className="playwright-report-frame" title={title} src={src} onLoad={handleLoad} />;
 }
 
 function DetailCard({ label, value, href }) {
