@@ -231,12 +231,69 @@ function App() {
   </main>;
 }
 
-function injectReportTheme(html, reportUrl) {
-  const baseHref = reportUrl.replace(/[^/]*$/, '');
-  const prelude = `<base href="${baseHref}"><script>try{localStorage.setItem('theme','dark-mode');document.documentElement.classList.add('dark-mode');document.documentElement.style.colorScheme='dark'}catch(e){}</script>`;
-  return html.replace(/<head([^>]*)>/i, `<head$1>${prelude}`);
+function parseReportStats(json) {
+  const stats = json?.stats;
+  if (!stats) return null;
+  return {
+    total: Number(stats.total ?? 0) - Number(stats.skipped ?? 0),
+    passed: Number(stats.expected ?? 0),
+    failed: Number(stats.unexpected ?? 0),
+    flaky: Number(stats.flaky ?? 0),
+    skipped: Number(stats.skipped ?? 0),
+    duration: stats.duration
+  };
 }
 
+const zipTextDecoder = new TextDecoder();
+const u16 = (bytes, offset) => bytes[offset] | (bytes[offset + 1] << 8);
+const u32 = (bytes, offset) => (bytes[offset] | (bytes[offset + 1] << 8) | (bytes[offset + 2] << 16) | (bytes[offset + 3] << 24)) >>> 0;
+function base64Bytes(value) {
+  const binary = atob(value);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
+  return bytes;
+}
+async function inflateZipEntry(data, method) {
+  if (method === 0) return data;
+  if (method !== 8 || typeof DecompressionStream === 'undefined') return null;
+  const stream = new Blob([data]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function readZipTextEntry(zipBytes, entryName) {
+  let eocd = -1;
+  for (let i = zipBytes.length - 22; i >= 0; i -= 1) {
+    if (u32(zipBytes, i) === 0x06054b50) { eocd = i; break; }
+  }
+  if (eocd < 0) return null;
+  const entries = u16(zipBytes, eocd + 10);
+  let cursor = u32(zipBytes, eocd + 16);
+  for (let i = 0; i < entries; i += 1) {
+    if (u32(zipBytes, cursor) !== 0x02014b50) return null;
+    const method = u16(zipBytes, cursor + 10);
+    const compressedSize = u32(zipBytes, cursor + 20);
+    const nameLength = u16(zipBytes, cursor + 28);
+    const extraLength = u16(zipBytes, cursor + 30);
+    const commentLength = u16(zipBytes, cursor + 32);
+    const localOffset = u32(zipBytes, cursor + 42);
+    const name = zipTextDecoder.decode(zipBytes.slice(cursor + 46, cursor + 46 + nameLength));
+    if (name === entryName) {
+      const localNameLength = u16(zipBytes, localOffset + 26);
+      const localExtraLength = u16(zipBytes, localOffset + 28);
+      const dataStart = localOffset + 30 + localNameLength + localExtraLength;
+      const compressed = zipBytes.slice(dataStart, dataStart + compressedSize);
+      const inflated = await inflateZipEntry(compressed, method);
+      return inflated ? zipTextDecoder.decode(inflated) : null;
+    }
+    cursor += 46 + nameLength + extraLength + commentLength;
+  }
+  return null;
+}
+async function readReportStatsFromHtml(html) {
+  const match = html.match(/id=["']playwrightReportBase64["'][^>]*>data:application\/zip;base64,([^<]+)/);
+  if (!match) return null;
+  const reportText = await readZipTextEntry(base64Bytes(match[1].trim()), 'report.json');
+  return reportText ? parseReportStats(JSON.parse(reportText)) : null;
+}
 function readReportStats(doc) {
   const text = doc?.body?.innerText || '';
   const pick = (label) => {
@@ -253,50 +310,28 @@ function readReportStats(doc) {
 }
 
 function ReportFrame({ reportUrl, title, onStats }) {
-  const [src, setSrc] = useState(reportUrl);
-
   useEffect(() => {
     let cancelled = false;
-    let blobUrl = '';
-    setSrc(reportUrl);
     fetch(reportUrl, { cache: 'no-store' })
       .then(r => r.ok ? r.text() : Promise.reject(new Error(`HTTP ${r.status}`)))
-      .then(html => {
-        if (cancelled) return;
-        const blob = new Blob([injectReportTheme(html, reportUrl)], { type: 'text/html' });
-        blobUrl = URL.createObjectURL(blob);
-        setSrc(blobUrl);
-      })
-      .catch(() => { if (!cancelled) setSrc(reportUrl); });
-    return () => {
-      cancelled = true;
-      if (blobUrl) URL.revokeObjectURL(blobUrl);
-    };
+      .then(html => readReportStatsFromHtml(html))
+      .then(stats => { if (!cancelled && stats) onStats?.(stats); })
+      .catch(() => {});
+    return () => { cancelled = true; };
   }, [reportUrl]);
 
   function handleLoad(event) {
     const frame = event.currentTarget;
     frame.dataset.loaded = 'true';
-    let attempts = 0;
-    const scan = () => {
-      attempts += 1;
-      try {
-        const doc = frame.contentDocument;
-        doc?.defaultView?.localStorage?.setItem('theme', 'dark-mode');
-        doc?.documentElement?.classList?.remove('light-mode');
-        doc?.documentElement?.classList?.add('dark-mode');
-        doc?.documentElement?.style?.setProperty('color-scheme', 'dark');
-        const stats = readReportStats(doc);
-        if (stats) onStats?.(stats);
-        if (!stats && attempts < 12) setTimeout(scan, 250);
-      } catch {
-        // Cross-origin fallback: CSS still frames it dark, but native contents are not scriptable.
-      }
-    };
-    scan();
+    try {
+      const stats = readReportStats(frame.contentDocument);
+      if (stats) onStats?.(stats);
+    } catch {
+      // Cross-origin official reports are intentionally left native; stats come from fetched HTML.
+    }
   }
 
-  return <iframe className="playwright-report-frame" title={title} src={src} onLoad={handleLoad} />;
+  return <iframe className="playwright-report-frame" title={title} src={reportUrl} onLoad={handleLoad} />;
 }
 
 function DetailCard({ label, value, href }) {
