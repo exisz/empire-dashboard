@@ -7,7 +7,9 @@
     "dev": "vite --host 0.0.0.0",
     "build": "vite build && node scripts/build.js",
     "check": "node scripts/validate-registry.js",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "e2e:status": "node src/cli/empire-e2e.js status",
+    "e2e:failures": "node src/cli/empire-e2e.js failures"
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
@@ -18,5 +20,9 @@
     "lucide-react": "latest",
     "clsx": "latest"
   },
-  "devDependencies": {}
+  "devDependencies": {},
+  "bin": {
+    "empire-e2e": "./src/cli/empire-e2e.js",
+    "empire-dashboard": "./src/cli/empire-e2e.js"
+  }
 }
